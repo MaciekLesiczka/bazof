@@ -1,5 +1,4 @@
-
-
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -10,9 +9,10 @@ struct Snapshot {
 #[derive(Serialize, Deserialize, Debug)]
 struct Segment {
     id: u64,
-    start: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    end: Option<u64>,
+    #[serde(with = "timestamp_format")]
+    start: DateTime<Utc>,
+    #[serde(with = "optional_timestamp_format", skip_serializing_if = "Option::is_none", default)]
+    end: Option<DateTime<Utc>>,
     location: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     base: Option<String>,
@@ -25,13 +25,75 @@ struct Segment {
 #[derive(Serialize, Deserialize, Debug)]
 struct Delta {
     file: String,
-    start: u64,
-    end: u64,
+    #[serde(with = "timestamp_format")]
+    start: DateTime<Utc>,
+    #[serde(with = "timestamp_format")]
+    end: DateTime<Utc>,
 }
 
+mod timestamp_format {
+    use chrono::{DateTime, Utc};
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    pub const FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
+
+    pub fn serialize<S>(datetime: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = datetime.format(FORMAT).to_string();
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        DateTime::parse_from_rfc3339(&s)
+            .map(|dt| dt.with_timezone(&Utc))
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+mod optional_timestamp_format {
+    use chrono::{DateTime, Utc};
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    use super::timestamp_format::{FORMAT};
+
+    pub fn serialize<S>(datetime: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match datetime {
+            Some(dt) => {
+                let s = dt.format(FORMAT).to_string();
+                serializer.serialize_some(&s)
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<String> = Option::deserialize(deserializer)?;
+        match s {
+            Some(date_str) => {
+                DateTime::parse_from_rfc3339(&date_str)
+                    .map(|dt| Some(dt.with_timezone(&Utc)))
+                    .map_err(serde::de::Error::custom)
+            }
+            None => Ok(None),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Add;
+    use chrono::{TimeDelta, TimeZone};
     use super::*;
     #[test]
     fn test_deserialization() {
@@ -39,50 +101,50 @@ mod tests {
   "segments": [
     {
       "id": 10,
-      "start": 0,
-      "end": 999,
+      "start": "2024-01-01T00:00:00.000Z",
+      "end": "2024-12-31T23:59:59.999Z",
       "location": "data/segments/10",
       "base":"base.parquet",
       "segments": [
         {
           "id": 11,
-          "start":0,
-          "end": 499,
+          "start": "2024-01-01T00:00:00.000Z",
+          "end": "2024-06-30T23:59:59.999Z",
           "location": "data/segments/11",
           "delta": [
             {
               "file": "delta_111.parquet",
-              "start": 12,
-              "end": 100
+              "start": "2024-01-01T00:00:00.000Z",
+              "end": "2024-03-31T23:59:59.999Z"
             },
             {
               "file": "delta_112.parquet",
-              "start": 220,
-              "end": 399
+              "start": "2024-04-01T00:00:00.000Z",
+              "end": "2024-06-30T23:59:59.999Z"
             }
           ]
         },
         {
           "id": 12,
-          "start":500,
-          "end": 999,
+          "start": "2024-07-01T00:00:00.000Z",
+          "end": "2024-12-31T23:59:59.999Z",
           "base":"base.parquet",
-          "location": "data/segments/11",
+          "location": "data/segments/12",
           "delta": [
             {
               "file": "delta_121.parquet",
-              "start": 500,
-              "end": 699
+              "start": "2024-07-01T00:00:00.000Z",
+              "end": "2024-08-31T23:59:59.999Z"
             },
             {
               "file": "delta_122.parquet",
-              "start": 700,
-              "end": 899
+              "start": "2024-09-01T00:00:00.000Z",
+              "end": "2024-10-31T23:59:59.999Z"
             },
             {
               "file": "delta_123.parquet",
-              "start": 900,
-              "end": 999
+              "start": "2024-11-01T00:00:00.000Z",
+              "end": "2024-12-31T23:59:59.999Z"
             }
           ]
         }
@@ -90,19 +152,19 @@ mod tests {
     },
     {
       "id": 20,
-      "start": 1000,
+      "start": "2025-01-01T00:00:00.000Z",
       "location": "data/segments/20",
       "base":"base.parquet",
       "delta": [
         {
           "file": "delta_22.parquet",
-          "start": 1200,
-          "end": 1405
+          "start": "2025-01-01T00:00:00.000Z",
+          "end": "2025-01-31T23:59:59.999Z"
         },
         {
           "file": "delta_23.parquet",
-          "start": 1600,
-          "end": 1890
+          "start": "2025-02-01T00:00:00.000Z",
+          "end": "2025-02-11T00:00:00.000Z"
         }
       ]
     }
@@ -112,13 +174,22 @@ mod tests {
         let snapshot: Snapshot = serde_json::from_str(json_str).unwrap();
 
         assert_eq!(snapshot.segments.len(), 2);
+
         assert_eq!(snapshot.segments[0].id, 10);
         assert_eq!(snapshot.segments[0].segments.as_ref().unwrap().len(), 2);
 
         let segment_11 = &snapshot.segments[0].segments.as_ref().unwrap()[0];
         assert_eq!(segment_11.id, 11);
-        assert_eq!(segment_11.delta.as_ref().unwrap().len(), 2);
-        assert_eq!(segment_11.delta.as_ref().unwrap()[0].file, "delta_111.parquet");
+
+        assert_eq!(segment_11.start, start_of_month(2024,1));
+        assert_eq!(segment_11.end, Some(start_of_month(2024,7).add(TimeDelta::milliseconds(-1))));
+
+        let deltas = segment_11.delta.as_ref().unwrap();
+        assert_eq!(deltas.len(), 2);
+        assert_eq!(deltas[0].file, "delta_111.parquet");
+        assert_eq!(deltas[1].end, start_of_month(2024,7).add(TimeDelta::milliseconds(-1)));
+
+        assert_eq!(snapshot.segments[1].end, None);
     }
 
     #[test]
@@ -127,22 +198,22 @@ mod tests {
             segments: vec![
                 Segment {
                     id: 10,
-                    start: 0,
-                    end: Some(999),
+                    start: start_of_month(2025, 1),
+                    end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
                     location: "data/segments/10".to_string(),
                     base: Some("base.parquet".to_string()),
                     segments: Some(vec![
                         Segment {
                             id:11,
-                            start: 500,
-                            end: Some(900),
+                            start: start_of_month(2025, 1),
+                            end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
                             location: "data/segments/11".to_string(),
                             base: Some("base.parquet".to_string()),
                             segments: None,
                             delta: Some (
                                 vec![Delta{
-                                    start: 501,
-                                    end:900,
+                                    start: start_of_month(2025, 1),
+                                    end: start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)),
                                     file: "delta_111.parquet".to_string(),
                                 }
                             ])
@@ -162,11 +233,15 @@ mod tests {
         assert_eq!(nested_segment.id, 11);
         assert_eq!(nested_segment.location, "data/segments/11");
         assert_eq!(nested_segment.base.as_ref().unwrap(), "base.parquet");
-        assert_eq!(nested_segment.end, Some(900));
+        assert_eq!(nested_segment.end.unwrap(), start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
 
         let delta = &nested_segment.delta.as_ref().unwrap()[0];
-        assert_eq!(delta.start, 501);
-        assert_eq!(delta.end, 900);
+        assert_eq!(delta.start, start_of_month(2025, 1));
+        assert_eq!(delta.end, start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
         assert_eq!(delta.file, "delta_111.parquet".to_string());
+    }
+
+    fn start_of_month(year:i32, month:u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(year, month, 1,0, 0, 0).unwrap()
     }
 }
