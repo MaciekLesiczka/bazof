@@ -120,4 +120,53 @@ mod tests {
         assert_eq!(segment_11.delta.as_ref().unwrap().len(), 2);
         assert_eq!(segment_11.delta.as_ref().unwrap()[0].file, "delta_111.parquet");
     }
+
+    #[test]
+    fn test_serialization() {
+        let snapshot = Snapshot {
+            segments: vec![
+                Segment {
+                    id: 10,
+                    start: 0,
+                    end: Some(999),
+                    location: "data/segments/10".to_string(),
+                    base: Some("base.parquet".to_string()),
+                    segments: Some(vec![
+                        Segment {
+                            id:11,
+                            start: 500,
+                            end: Some(900),
+                            location: "data/segments/11".to_string(),
+                            base: Some("base.parquet".to_string()),
+                            segments: None,
+                            delta: Some (
+                                vec![Delta{
+                                    start: 501,
+                                    end:900,
+                                    file: "delta_111.parquet".to_string(),
+                                }
+                            ])
+                        }
+                    ]),
+                    delta: None,
+                }
+            ],
+        };
+
+        let json_str = serde_json::to_string(&snapshot).unwrap();
+        let deserialized_snapshot: Snapshot = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized_snapshot.segments.len(), 1);
+        assert_eq!(deserialized_snapshot.segments[0].segments.as_ref().unwrap().len(), 1);
+        let nested_segment = &deserialized_snapshot.segments[0].segments.as_ref().unwrap()[0];
+
+        assert_eq!(nested_segment.id, 11);
+        assert_eq!(nested_segment.location, "data/segments/11");
+        assert_eq!(nested_segment.base.as_ref().unwrap(), "base.parquet");
+        assert_eq!(nested_segment.end, Some(900));
+
+        let delta = &nested_segment.delta.as_ref().unwrap()[0];
+        assert_eq!(delta.start, 501);
+        assert_eq!(delta.end, 900);
+        assert_eq!(delta.file, "delta_111.parquet".to_string());
+    }
 }
