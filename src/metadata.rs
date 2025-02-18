@@ -8,14 +8,13 @@ struct Snapshot {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Segment {
-    id: u64,
+    id: String,
     #[serde(with = "timestamp_format")]
     start: DateTime<Utc>,
     #[serde(with = "optional_timestamp_format", skip_serializing_if = "Option::is_none", default)]
     end: Option<DateTime<Utc>>,
-    location: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    base: Option<String>,
+    file: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     segments: Option<Vec<Segment>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,17 +99,15 @@ mod tests {
         let json_str =r#"{
   "segments": [
     {
-      "id": 10,
+      "id": "10",
       "start": "2024-01-01T00:00:00.000Z",
       "end": "2024-12-31T23:59:59.999Z",
-      "location": "data/segments/10",
-      "base":"base.parquet",
+      "file":"base.parquet",
       "segments": [
         {
-          "id": 11,
+          "id": "11",
           "start": "2024-01-01T00:00:00.000Z",
           "end": "2024-06-30T23:59:59.999Z",
-          "location": "data/segments/11",
           "delta": [
             {
               "file": "delta_111.parquet",
@@ -125,11 +122,10 @@ mod tests {
           ]
         },
         {
-          "id": 12,
+          "id": "12",
           "start": "2024-07-01T00:00:00.000Z",
           "end": "2024-12-31T23:59:59.999Z",
-          "base":"base.parquet",
-          "location": "data/segments/12",
+          "file":"base.parquet",
           "delta": [
             {
               "file": "delta_121.parquet",
@@ -151,10 +147,9 @@ mod tests {
       ]
     },
     {
-      "id": 20,
+      "id": "20",
       "start": "2025-01-01T00:00:00.000Z",
-      "location": "data/segments/20",
-      "base":"base.parquet",
+      "file":"base.parquet",
       "delta": [
         {
           "file": "delta_22.parquet",
@@ -175,13 +170,14 @@ mod tests {
 
         assert_eq!(snapshot.segments.len(), 2);
 
-        assert_eq!(snapshot.segments[0].id, 10);
+        assert_eq!(snapshot.segments[0].id, "10".to_string());
         assert_eq!(snapshot.segments[0].segments.as_ref().unwrap().len(), 2);
 
         let segment_11 = &snapshot.segments[0].segments.as_ref().unwrap()[0];
-        assert_eq!(segment_11.id, 11);
+        assert_eq!(segment_11.id, "11".to_string());
 
         assert_eq!(segment_11.start, start_of_month(2024,1));
+        assert_eq!(segment_11.file, None);
         assert_eq!(segment_11.end, Some(start_of_month(2024,7).add(TimeDelta::milliseconds(-1))));
 
         let deltas = segment_11.delta.as_ref().unwrap();
@@ -197,18 +193,16 @@ mod tests {
         let snapshot = Snapshot {
             segments: vec![
                 Segment {
-                    id: 10,
+                    id: "10".to_string(),
                     start: start_of_month(2025, 1),
                     end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
-                    location: "data/segments/10".to_string(),
-                    base: Some("base.parquet".to_string()),
+                    file: Some("base.parquet".to_string()),
                     segments: Some(vec![
                         Segment {
-                            id:11,
+                            id: "11".to_string(),
                             start: start_of_month(2025, 1),
                             end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
-                            location: "data/segments/11".to_string(),
-                            base: Some("base.parquet".to_string()),
+                            file: Some("base.parquet".to_string()),
                             segments: None,
                             delta: Some (
                                 vec![Delta{
@@ -230,9 +224,8 @@ mod tests {
         assert_eq!(deserialized_snapshot.segments[0].segments.as_ref().unwrap().len(), 1);
         let nested_segment = &deserialized_snapshot.segments[0].segments.as_ref().unwrap()[0];
 
-        assert_eq!(nested_segment.id, 11);
-        assert_eq!(nested_segment.location, "data/segments/11");
-        assert_eq!(nested_segment.base.as_ref().unwrap(), "base.parquet");
+        assert_eq!(nested_segment.id, "11".to_string());
+        assert_eq!(nested_segment.file.as_ref().unwrap(), "base.parquet");
         assert_eq!(nested_segment.end.unwrap(), start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
 
         let delta = &nested_segment.delta.as_ref().unwrap()[0];
