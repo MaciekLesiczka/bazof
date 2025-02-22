@@ -5,11 +5,13 @@ use std::str::FromStr;
 use chrono::{DateTime, ParseError, Utc};
 use std::{fs, i64};
 use std::sync::Arc;
-use arrow_array::{Int64Array, RecordBatch, StringArray};
+use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::error::ArrowError;
-use arrow_array::builder::{Int64Builder, StringBuilder};
+use arrow_array::builder::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
+use parquet::arrow::{ArrowWriter};
 use thiserror::Error;
+use parquet::file::properties::WriterProperties;
 
 #[derive(Debug, Error)]
 enum BazofError {
@@ -25,7 +27,7 @@ fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
     let mut keys = Int64Builder::new();
     let mut values = StringBuilder::new();
-    let mut timestamps = Int64Builder::new();
+    let mut timestamps = TimestampMillisecondBuilder::new();
 
     for line in csv.split('\n'){
         let parts: Vec<&str> = line.split(',').collect();
@@ -42,7 +44,7 @@ fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
     }
     let keys_array: Int64Array = keys.finish();
     let values_array: StringArray = values.finish();
-    let ts_array : Int64Array = timestamps.finish();
+    let ts_array : TimestampMillisecondArray = timestamps.finish();
 
     let schema = Schema::new(vec![
         Field::new("key", DataType::Int64, false),
@@ -55,15 +57,31 @@ fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
             Arc::new(values_array),
             Arc::new(ts_array)
     ])?;
-    
+
     Ok(batch)
 }
 
-fn main() {
+use object_store::memory::InMemory;
+use object_store::{path::Path, ObjectStore};
+
+#[tokio::main]
+async fn main() {
+
+    let store = Arc::new(InMemory::new());
+    let path = Path::from("test.parquet");
 
     let csv = fs::read_to_string("test-data/table0/base.csv").unwrap();
 
     let batch = csv_to_arrow(csv).unwrap();
+
+    let mut buffer = Vec::new();
+    let props = WriterProperties::builder().build();
+    let mut writer = ArrowWriter::try_new(&mut buffer, batch.schema(), Some(props)).unwrap();
+
+    writer.write(&batch).unwrap();
+    writer.close().unwrap();
+
+    let result = store.put(&path,buffer.into()).await.unwrap();
 
     println!("Deserialized struct");
 }
