@@ -2,14 +2,26 @@ mod metadata;
 mod reader;
 
 use std::str::FromStr;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, ParseError, Utc};
 use std::{fs, i64};
 use std::sync::Arc;
 use arrow_array::{Int64Array, RecordBatch, StringArray};
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+use arrow::error::ArrowError;
 use arrow_array::builder::{Int64Builder, StringBuilder};
+use thiserror::Error;
 
-fn csv_to_parquet(csv: String, parquet: String) {
+#[derive(Debug, Error)]
+enum BazofError {
+    #[error("IO error: {0}")]
+    Arrow(#[from] ArrowError),
+    #[error("Parsing error: {0}")]
+    ParseInt(#[from] std::num::ParseIntError),
+    #[error("DateTime parsing error: {0}")]
+    ParseChrono(#[from] ParseError),
+}
+
+fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
     let mut keys = Int64Builder::new();
     let mut values = StringBuilder::new();
@@ -17,18 +29,16 @@ fn csv_to_parquet(csv: String, parquet: String) {
 
     for line in csv.split('\n'){
         let parts: Vec<&str> = line.split(',').collect();
-        let key = i64::from_str(parts[0]).unwrap();
+        let key = i64::from_str(parts[0])?;
 
         keys.append_value(key);
         values.append_value(parts[1]);
         
         let ts = DateTime::parse_from_rfc3339(parts[2])
         .map(|dt| dt.with_timezone(&Utc))
-        .unwrap().timestamp_millis();
+        ?.timestamp_millis();
 
         timestamps.append_value(ts);
-
-        //
     }
     let keys_array: Int64Array = keys.finish();
     let values_array: StringArray = values.finish();
@@ -44,17 +54,16 @@ fn csv_to_parquet(csv: String, parquet: String) {
             Arc::new(keys_array),
             Arc::new(values_array),
             Arc::new(ts_array)
-    ]);
-
-
-    println!("OK!");
+    ])?;
+    
+    Ok(batch)
 }
 
 fn main() {
 
     let csv = fs::read_to_string("test-data/table0/base.csv").unwrap();
 
-    csv_to_parquet(csv, String::from("parquet"));
+    let batch = csv_to_arrow(csv).unwrap();
 
     println!("Deserialized struct");
 }
