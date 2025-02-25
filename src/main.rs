@@ -21,13 +21,15 @@ enum BazofError {
     ParseInt(#[from] std::num::ParseIntError),
     #[error("DateTime parsing error: {0}")]
     ParseChrono(#[from] ParseError),
+    #[error("Parquet file error: {0}")]
+    ParquetFile(#[from] parquet::errors::ParquetError),
 }
 
 fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
     let mut keys = Int64Builder::new();
     let mut values = StringBuilder::new();
-    let mut timestamps = TimestampMillisecondBuilder::new();
+    let mut timestamps = TimestampMillisecondBuilder::new().with_timezone("UTC");
 
     for line in csv.split('\n'){
         let parts: Vec<&str> = line.split(',').collect();
@@ -46,6 +48,7 @@ fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
     let values_array: StringArray = values.finish();
     let ts_array : TimestampMillisecondArray = timestamps.finish();
 
+
     let schema = Schema::new(vec![
         Field::new("key", DataType::Int64, false),
         Field::new("value", DataType::Utf8, false),
@@ -63,25 +66,34 @@ fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
 use object_store::memory::InMemory;
 use object_store::{path::Path, ObjectStore};
+use object_store::local::LocalFileSystem;
+
+fn arrow_to_parquet(batch : RecordBatch) -> Result<Vec<u8>, BazofError>{
+    let mut buffer = Vec::new();
+    let props = WriterProperties::builder().build();
+    let mut writer = ArrowWriter::try_new(&mut buffer, batch.schema(), Some(props))?;
+
+    writer.write(&batch)?;
+    writer.close()?;
+    Ok(buffer)
+}
 
 #[tokio::main]
 async fn main() {
 
-    let store = Arc::new(InMemory::new());
-    let path = Path::from("test.parquet");
+
+
+    //let store = Arc::new(InMemory::new());
+    let store = Arc::new(LocalFileSystem::new());
+    let path = Path::from("/home/maciek/src/bazof/test.parquet");
 
     let csv = fs::read_to_string("test-data/table0/base.csv").unwrap();
 
     let batch = csv_to_arrow(csv).unwrap();
 
-    let mut buffer = Vec::new();
-    let props = WriterProperties::builder().build();
-    let mut writer = ArrowWriter::try_new(&mut buffer, batch.schema(), Some(props)).unwrap();
-
-    writer.write(&batch).unwrap();
-    writer.close().unwrap();
+    let buffer = arrow_to_parquet(batch).unwrap();
 
     let result = store.put(&path,buffer.into()).await.unwrap();
 
-    println!("Deserialized struct");
+    println!("Put csv to object store");
 }
