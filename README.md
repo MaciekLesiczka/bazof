@@ -17,7 +17,7 @@ Bazof is under development. The goal of to implement data lakehouse with the fol
 
 ## Milestone 0
 
-- [ ] Script/tool for generating sample kv data set
+- [x] Script/tool for generating sample kv data set
 - [ ] Key-value reader
 - [ ] DataFusion table provider
 
