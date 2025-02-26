@@ -1,72 +1,22 @@
 mod metadata;
 mod reader;
+mod errors;
+mod schema;
+mod test_bench;
 
-use std::str::FromStr;
-use chrono::{DateTime, ParseError, Utc};
-use std::{fs, i64};
-use std::sync::Arc;
-use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
-use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
-use arrow::error::ArrowError;
-use arrow_array::builder::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
-use parquet::arrow::{ArrowWriter};
-use thiserror::Error;
+use arrow_array::builder::ArrayBuilder;
+use arrow_array::RecordBatch;
+use errors::BazofError;
+use parquet::arrow::ArrowWriter;
 use parquet::file::properties::WriterProperties;
-
-#[derive(Debug, Error)]
-enum BazofError {
-    #[error("IO error: {0}")]
-    Arrow(#[from] ArrowError),
-    #[error("Parsing error: {0}")]
-    ParseInt(#[from] std::num::ParseIntError),
-    #[error("DateTime parsing error: {0}")]
-    ParseChrono(#[from] ParseError),
-    #[error("Parquet file error: {0}")]
-    ParquetFile(#[from] parquet::errors::ParquetError),
-}
-
-fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
-
-    let mut keys = Int64Builder::new();
-    let mut values = StringBuilder::new();
-    let mut timestamps = TimestampMillisecondBuilder::new().with_timezone("UTC");
-
-    for line in csv.split('\n'){
-        let parts: Vec<&str> = line.split(',').collect();
-        let key = i64::from_str(parts[0])?;
-
-        keys.append_value(key);
-        values.append_value(parts[1]);
-        
-        let ts = DateTime::parse_from_rfc3339(parts[2])
-        .map(|dt| dt.with_timezone(&Utc))
-        ?.timestamp_millis();
-
-        timestamps.append_value(ts);
-    }
-    let keys_array: Int64Array = keys.finish();
-    let values_array: StringArray = values.finish();
-    let ts_array : TimestampMillisecondArray = timestamps.finish();
+use std::str::FromStr;
+use std::sync::Arc;
+use std::fs;
 
 
-    let schema = Schema::new(vec![
-        Field::new("key", DataType::Int64, false),
-        Field::new("value", DataType::Utf8, false),
-        Field::new("ts", DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())), false),
-    ]);
-    let batch = RecordBatch::try_new(
-        Arc::new(schema.into()), vec![
-            Arc::new(keys_array),
-            Arc::new(values_array),
-            Arc::new(ts_array)
-    ])?;
-
-    Ok(batch)
-}
-
-use object_store::memory::InMemory;
-use object_store::{path::Path, ObjectStore};
+use crate::test_bench::{csv_to_arrow, generate_random_batch};
 use object_store::local::LocalFileSystem;
+use object_store::{path::Path, ObjectStore};
 
 fn arrow_to_parquet(batch : RecordBatch) -> Result<Vec<u8>, BazofError>{
     let mut buffer = Vec::new();
@@ -81,17 +31,17 @@ fn arrow_to_parquet(batch : RecordBatch) -> Result<Vec<u8>, BazofError>{
 #[tokio::main]
 async fn main() {
 
-
+    let b = generate_random_batch(20, (1700000000000, 1705000000000), 5).unwrap();
 
     //let store = Arc::new(InMemory::new());
     let store = Arc::new(LocalFileSystem::new());
-    let path = Path::from("/home/maciek/src/bazof/test.parquet");
+    let path = Path::from("/home/maciek/src/bazof/test-data/table0/base_rand.parquet");
 
     let csv = fs::read_to_string("test-data/table0/base.csv").unwrap();
 
     let batch = csv_to_arrow(csv).unwrap();
 
-    let buffer = arrow_to_parquet(batch).unwrap();
+    let buffer = arrow_to_parquet(b).unwrap();
 
     let result = store.put(&path,buffer.into()).await.unwrap();
 
