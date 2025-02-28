@@ -1,9 +1,24 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use crate::errors::BazofError;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Snapshot {
+pub struct Snapshot {
     segments: Vec<Segment>,
+}
+
+impl Snapshot {
+    pub fn deserialize(json_string: &str) -> Result<Snapshot, BazofError>{
+        Ok(serde_json::from_str::<Snapshot>(json_string)?)
+    }
+
+    pub fn get_data_files(&self, as_of: Option<DateTime<Utc>>) -> Vec<String> {
+        self.segments
+            .iter()
+            .filter(|segment| segment.is_in_range(as_of)) // Only include segments in range
+            .filter_map(|segment| segment.file.clone()) // Collect only non-None file values
+            .collect()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,6 +34,21 @@ struct Segment {
     segments: Option<Vec<Segment>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     delta: Option<Vec<Delta>>,
+}
+
+impl Segment{
+    pub fn is_in_range(&self, as_of: Option<DateTime<Utc>>) -> bool {
+        match as_of {
+            None => self.end.is_none(),
+            Some(as_of_time) => {
+                if let Some(end_time) = self.end {
+                    self.start <= as_of_time && as_of_time <= end_time
+                } else {
+                    self.start <= as_of_time
+                }
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -102,7 +132,7 @@ mod tests {
       "id": "10",
       "start": "2024-01-01T00:00:00.000Z",
       "end": "2024-12-31T23:59:59.999Z",
-      "file":"base.parquet",
+      "file":"base10.parquet",
       "segments": [
         {
           "id": "11",
@@ -125,7 +155,7 @@ mod tests {
           "id": "12",
           "start": "2024-07-01T00:00:00.000Z",
           "end": "2024-12-31T23:59:59.999Z",
-          "file":"base.parquet",
+          "file":"base12.parquet",
           "delta": [
             {
               "file": "delta_121.parquet",
@@ -149,7 +179,7 @@ mod tests {
     {
       "id": "20",
       "start": "2025-01-01T00:00:00.000Z",
-      "file":"base.parquet",
+      "file":"base20.parquet",
       "delta": [
         {
           "file": "delta_22.parquet",
@@ -232,6 +262,61 @@ mod tests {
         assert_eq!(delta.start, start_of_month(2025, 1));
         assert_eq!(delta.end, start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
         assert_eq!(delta.file, "delta_111.parquet".to_string());
+    }
+
+    #[test]
+    fn reads_base_file_of_current_segment(){
+        let json_str = r#"{
+  "segments": [
+    {
+      "id": "10",
+      "start": "2024-01-01T00:00:00.000Z",
+      "file": "base.parquet"
+    }
+  ]
+}"#;
+        let snapshot = Snapshot::deserialize(json_str).unwrap();
+
+        let files = snapshot.get_data_files(None);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], String::from("base.parquet"));
+
+        let files = snapshot.get_data_files(Some(start_of_month(2023,12)));
+
+        assert_eq!(files.len(), 0);
+    }
+
+    #[test]
+    fn reads_base_file_of_historical_segment(){
+        let json_str = r#"{
+  "segments": [
+    {
+      "id": "10",
+      "start": "2024-01-01T00:00:00.000Z",
+      "end": "2024-03-01T00:00:00.000Z",
+      "file": "base.parquet"
+    }
+  ]
+}"#;
+        let snapshot = Snapshot::deserialize(json_str).unwrap();
+
+        let files = snapshot.get_data_files(Some(start_of_month(2024,1)));
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], String::from("base.parquet"));
+
+        let files = snapshot.get_data_files(Some(start_of_month(2024,2)));
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], String::from("base.parquet"));
+
+        let files = snapshot.get_data_files(None);
+
+        assert_eq!(files.len(), 0);
+
+        let files = snapshot.get_data_files(Some(start_of_month(2023,2)));
+        assert_eq!(files.len(), 0);
+
+        let files = snapshot.get_data_files(Some(start_of_month(2024,4)));
+        assert_eq!(files.len(), 0);
     }
 
     fn start_of_month(year:i32, month:u32) -> DateTime<Utc> {
