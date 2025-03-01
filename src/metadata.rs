@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use crate::as_of::AsOf;
 use crate::errors::BazofError;
-
+use crate::as_of::AsOf::Current;
+use crate::as_of::AsOf::Past;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Snapshot {
     segments: Vec<Segment>,
@@ -12,7 +14,7 @@ impl Snapshot {
         Ok(serde_json::from_str::<Snapshot>(json_string)?)
     }
 
-    pub fn get_data_files(&self, as_of: Option<DateTime<Utc>>) -> Vec<String> {
+    pub fn get_data_files(&self, as_of: AsOf) -> Vec<String> {
         self.segments
             .iter()
             .flat_map(|segment| segment.get_data_files(as_of))
@@ -36,7 +38,7 @@ struct Segment {
 }
 
 impl Segment{
-    pub fn get_data_files(&self, as_of: Option<DateTime<Utc>>) -> Vec<String> {
+    pub fn get_data_files(&self, as_of: AsOf) -> Vec<String> {
         let mut files = Vec::new();
 
         if let Some(subsegments) = &self.segments {
@@ -56,10 +58,10 @@ impl Segment{
         files
     }
 
-    fn is_in_range(&self, as_of: Option<DateTime<Utc>>) -> bool {
+    fn is_in_range(&self, as_of: AsOf) -> bool {
         match as_of {
-            None => self.end.is_none(),
-            Some(as_of_time) => {
+            Current => self.end.is_none(),
+            Past (as_of_time) => {
                 if let Some(end_time) = self.end {
                     self.start <= as_of_time && as_of_time <= end_time
                 } else {
@@ -142,6 +144,7 @@ mod optional_timestamp_format {
 mod tests {
     use std::ops::Add;
     use chrono::{TimeDelta, TimeZone};
+
     use super::*;
     #[test]
     fn test_deserialization() {
@@ -296,11 +299,11 @@ mod tests {
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
 
-        let files = snapshot.get_data_files(None);
+        let files = snapshot.get_data_files(Current);
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
-        let files = snapshot.get_data_files(Some(start_of_month(2023,12)));
+        let files = snapshot.get_data_files(Past(start_of_month(2023,12)));
 
         assert_eq!(files.len(), 0);
     }
@@ -319,22 +322,22 @@ mod tests {
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
 
-        let files = snapshot.get_data_files(Some(start_of_month(2024,1)));
+        let files = snapshot.get_data_files(Past(start_of_month(2024,1)));
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
-        let files = snapshot.get_data_files(Some(start_of_month(2024,2)));
+        let files = snapshot.get_data_files(Past(start_of_month(2024,2)));
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
-        let files = snapshot.get_data_files(None);
+        let files = snapshot.get_data_files(Current);
 
         assert_eq!(files.len(), 0);
 
-        let files = snapshot.get_data_files(Some(start_of_month(2023,2)));
+        let files = snapshot.get_data_files(Past(start_of_month(2023,2)));
         assert_eq!(files.len(), 0);
 
-        let files = snapshot.get_data_files(Some(start_of_month(2024,4)));
+        let files = snapshot.get_data_files(Past(start_of_month(2024,4)));
         assert_eq!(files.len(), 0);
     }
 
@@ -379,7 +382,7 @@ mod tests {
   ]
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
-        let mut files = snapshot.get_data_files(Some(start_of_month(2018,4)));
+        let mut files = snapshot.get_data_files(Past(start_of_month(2018,4)));
 
         assert_eq!(files, vec![
             "base121.parquet".to_string(),
@@ -387,20 +390,20 @@ mod tests {
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Some(start_of_month(2022,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2022,4)));
         assert_eq!(files.len(),0);
 
-        files = snapshot.get_data_files(Some(start_of_month(2011,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2011,4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Some(start_of_month(2017,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2017,4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(None);
+        files = snapshot.get_data_files(Current);
         assert_eq!(files.len(),0);
     }
 
@@ -442,7 +445,7 @@ mod tests {
   ]
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
-        let mut files = snapshot.get_data_files(Some(start_of_month(2018,4)));
+        let mut files = snapshot.get_data_files(Past(start_of_month(2018,4)));
 
         assert_eq!(files, vec![
             "base121.parquet".to_string(),
@@ -450,24 +453,24 @@ mod tests {
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Some(start_of_month(2022,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2022,4)));
         assert_eq!(files, vec![
             "base122.parquet".to_string(),
             "base12.parquet".to_string(),
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Some(start_of_month(2011,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2011,4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Some(start_of_month(2017,4)));
+        files = snapshot.get_data_files(Past(start_of_month(2017,4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(None);
+        files = snapshot.get_data_files(Current);
         assert_eq!(files, vec![
             "base122.parquet".to_string(),
             "base12.parquet".to_string(),
