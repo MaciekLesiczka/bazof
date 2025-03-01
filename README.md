@@ -26,6 +26,7 @@ Bazof is under development. The goal of to implement data lakehouse with the fol
  - [ ] Single row, key-value writer
  - [ ] Document spec
  - [ ] Delta -> snapshot compaction
+ - [ ] Metadata validity checks
 
 ## Milestone 2
 

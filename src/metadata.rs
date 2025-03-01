@@ -15,8 +15,7 @@ impl Snapshot {
     pub fn get_data_files(&self, as_of: Option<DateTime<Utc>>) -> Vec<String> {
         self.segments
             .iter()
-            .filter(|segment| segment.is_in_range(as_of)) // Only include segments in range
-            .filter_map(|segment| segment.file.clone()) // Collect only non-None file values
+            .flat_map(|segment| segment.get_data_files(as_of))
             .collect()
     }
 }
@@ -37,7 +36,27 @@ struct Segment {
 }
 
 impl Segment{
-    pub fn is_in_range(&self, as_of: Option<DateTime<Utc>>) -> bool {
+    pub fn get_data_files(&self, as_of: Option<DateTime<Utc>>) -> Vec<String> {
+        let mut files = Vec::new();
+
+        if let Some(subsegments) = &self.segments {
+            for subsegment in subsegments {
+                if subsegment.is_in_range(as_of){
+                    files.extend(subsegment.get_data_files(as_of));
+                }
+            }
+        }
+
+        if self.is_in_range(as_of) {
+            if let Some(file) = &self.file {
+                files.push(file.clone());
+            }
+        }
+
+        files
+    }
+
+    fn is_in_range(&self, as_of: Option<DateTime<Utc>>) -> bool {
         match as_of {
             None => self.end.is_none(),
             Some(as_of_time) => {
@@ -240,7 +259,7 @@ mod tests {
                                     end: start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)),
                                     file: "delta_111.parquet".to_string(),
                                 }
-                            ])
+                                ])
                         }
                     ]),
                     delta: None,
@@ -317,6 +336,143 @@ mod tests {
 
         let files = snapshot.get_data_files(Some(start_of_month(2024,4)));
         assert_eq!(files.len(), 0);
+    }
+
+    #[test]
+    fn reads_base_file_of_nested_segments_in_historical_segments(){
+        let json_str = r#"{
+  "segments": [
+    {
+      "id": "10",
+      "start": "2010-01-01T00:00:00.000Z",
+      "end": "2020-01-01T00:00:00.000Z",
+      "file": "base10.parquet",
+      "segments": [
+        {
+          "id": "11",
+          "start": "2013-01-01T00:00:00.000Z",
+          "end": "2016-01-01T00:00:00.000Z",
+          "file": "base11.parquet"
+        },
+        {
+          "id": "12",
+          "start": "2018-01-01T00:00:00.000Z",
+          "end": "2019-01-01T00:00:00.000Z",
+          "file": "base12.parquet",
+          "segments": [
+            {
+              "id": "121",
+              "start": "2018-03-01T00:00:00.000Z",
+              "end": "2018-06-01T00:00:00.000Z",
+              "file": "base121.parquet"
+            },
+            {
+              "id": "122",
+              "start": "2018-07-01T00:00:00.000Z",
+              "end": "2019-01-01T00:00:00.000Z",
+              "file": "base112.parquet"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+        let snapshot = Snapshot::deserialize(json_str).unwrap();
+        let mut files = snapshot.get_data_files(Some(start_of_month(2018,4)));
+
+        assert_eq!(files, vec![
+            "base121.parquet".to_string(),
+            "base12.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(Some(start_of_month(2022,4)));
+        assert_eq!(files.len(),0);
+
+        files = snapshot.get_data_files(Some(start_of_month(2011,4)));
+        assert_eq!(files, vec![
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(Some(start_of_month(2017,4)));
+        assert_eq!(files, vec![
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(None);
+        assert_eq!(files.len(),0);
+    }
+
+    #[test]
+    fn reads_base_file_of_nested_segments_in_current_segments(){
+        let json_str = r#"{
+  "segments": [
+    {
+      "id": "10",
+      "start": "2010-01-01T00:00:00.000Z",
+      "file": "base10.parquet",
+      "segments": [
+        {
+          "id": "11",
+          "start": "2013-01-01T00:00:00.000Z",
+          "end": "2016-01-01T00:00:00.000Z",
+          "file": "base11.parquet"
+        },
+        {
+          "id": "12",
+          "start": "2018-01-01T00:00:00.000Z",
+          "file": "base12.parquet",
+          "segments": [
+            {
+              "id": "121",
+              "start": "2018-03-01T00:00:00.000Z",
+              "end": "2018-06-01T00:00:00.000Z",
+              "file": "base121.parquet"
+            },
+            {
+              "id": "122",
+              "start": "2018-07-01T00:00:00.000Z",
+              "file": "base122.parquet"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+        let snapshot = Snapshot::deserialize(json_str).unwrap();
+        let mut files = snapshot.get_data_files(Some(start_of_month(2018,4)));
+
+        assert_eq!(files, vec![
+            "base121.parquet".to_string(),
+            "base12.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(Some(start_of_month(2022,4)));
+        assert_eq!(files, vec![
+            "base122.parquet".to_string(),
+            "base12.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(Some(start_of_month(2011,4)));
+        assert_eq!(files, vec![
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(Some(start_of_month(2017,4)));
+        assert_eq!(files, vec![
+            "base10.parquet".to_string(),
+        ]);
+
+        files = snapshot.get_data_files(None);
+        assert_eq!(files, vec![
+            "base122.parquet".to_string(),
+            "base12.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
     }
 
     fn start_of_month(year:i32, month:u32) -> DateTime<Utc> {
