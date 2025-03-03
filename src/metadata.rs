@@ -49,6 +49,12 @@ impl Segment{
             }
         }
 
+        if let Some(delta) = &self.delta {
+            let mut sorted_deltas: Vec<&Delta> = delta.iter().filter(|d|d.is_before(as_of)).collect();
+            sorted_deltas.sort_by(|a, b| b.start.cmp(&a.start));
+            files.extend(sorted_deltas.into_iter().map(|delta| delta.file.clone()));
+        }
+
         if self.is_in_range(as_of) {
             if let Some(file) = &self.file {
                 files.push(file.clone());
@@ -79,6 +85,17 @@ struct Delta {
     start: DateTime<Utc>,
     #[serde(with = "timestamp_format")]
     end: DateTime<Utc>,
+}
+
+impl Delta{
+    pub fn is_before(&self, as_of: AsOf) -> bool {
+        match as_of {
+            Current => true,
+            Past (as_of_time) => {
+                self.start < as_of_time
+            }
+        }
+    }
 }
 
 mod timestamp_format {
@@ -474,6 +491,52 @@ mod tests {
         assert_eq!(files, vec![
             "base122.parquet".to_string(),
             "base12.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
+    }
+
+    #[test]
+    fn reads_delta_files_of_current_segment(){
+        let json_str = r#"{
+  "segments": [
+    {
+      "id": "10",
+      "start": "2024-01-01T00:00:00.000Z",
+      "file": "base10.parquet",
+      "delta": [
+        {
+          "file": "delta_100.parquet",
+          "start": "2024-02-01T00:00:00.000Z",
+          "end": "2024-05-31T23:59:59.999Z"
+        },
+        {
+          "file": "delta_101.parquet",
+          "start": "2024-09-01T00:00:00.000Z",
+          "end": "2024-11-30T23:59:59.999Z"
+        },
+        {
+          "file": "delta_102.parquet",
+          "start": "2024-07-01T00:00:00.000Z",
+          "end": "2024-09-30T23:59:59.999Z"
+        }
+      ]
+    }
+  ]
+}"#;
+        let snapshot = Snapshot::deserialize(json_str).unwrap();
+
+        let files = snapshot.get_data_files(Current);
+        assert_eq!(files, vec![
+            "delta_101.parquet".to_string(),
+            "delta_102.parquet".to_string(),
+            "delta_100.parquet".to_string(),
+            "base10.parquet".to_string(),
+        ]);
+
+        let files = snapshot.get_data_files(Past(start_of_month(2024,8)));
+        assert_eq!(files, vec![
+            "delta_102.parquet".to_string(),
+            "delta_100.parquet".to_string(),
             "base10.parquet".to_string(),
         ]);
     }
