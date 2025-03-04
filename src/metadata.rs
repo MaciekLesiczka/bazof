@@ -519,6 +519,13 @@ mod tests {
           "start": "2024-07-01T00:00:00.000Z",
           "end": "2024-09-30T23:59:59.999Z"
         }
+      ],
+      "segments": [
+        {
+          "id": "211",
+          "start": "2024-11-01T00:00:00.000Z",
+          "file": "base211.parquet"
+        }
       ]
     }
   ]
@@ -527,6 +534,7 @@ mod tests {
 
         let files = snapshot.get_data_files(Current);
         assert_eq!(files, vec![
+            "base211.parquet".to_string(),
             "delta_101.parquet".to_string(),
             "delta_102.parquet".to_string(),
             "delta_100.parquet".to_string(),
