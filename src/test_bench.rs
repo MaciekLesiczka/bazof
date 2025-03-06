@@ -55,7 +55,7 @@ pub fn generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: us
 
         if used_pairs.insert((key, ts)) {
             keys.append_value(key);
-            values.append_value(format!("val_{}", rng.gen::<u32>()));
+            values.append_value(format!("val_{}", rng.random::<u32>()));
             timestamps.append_value(ts);
         }
     }

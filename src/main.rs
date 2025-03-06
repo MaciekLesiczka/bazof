@@ -1,15 +1,17 @@
+extern crate core;
+
 mod metadata;
 mod reader;
 mod errors;
 mod schema;
 mod test_bench;
+mod table;
+mod as_of;
 
-use arrow_array::builder::ArrayBuilder;
 use arrow_array::RecordBatch;
 use errors::BazofError;
 use parquet::arrow::ArrowWriter;
 use parquet::file::properties::WriterProperties;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::fs;
 
@@ -39,11 +41,11 @@ async fn main() {
 
     let csv = fs::read_to_string("test-data/table0/base.csv").unwrap();
 
-    let batch = csv_to_arrow(csv).unwrap();
+    let _batch = csv_to_arrow(csv).unwrap();
 
     let buffer = arrow_to_parquet(b).unwrap();
 
-    let result = store.put(&path,buffer.into()).await.unwrap();
+    let _result = store.put(&path,buffer.into()).await.unwrap();
 
     println!("Put csv to object store");
 }
