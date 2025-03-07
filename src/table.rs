@@ -20,17 +20,13 @@ impl Table {
         }
     }
 
-    pub async fn get_data_files(&self, snapshot_id:&str, as_of: AsOf) -> Result<Vec<String>, BazofError> {
-        let snapshot_file = format!("s{}.json", snapshot_id);
-        let snapshot = self.read_snapshot(snapshot_file.as_str()).await?;
-        let files = snapshot.get_data_files(as_of);
-        Ok(files)
+    pub async fn get_current_data_files(&self, as_of: AsOf) -> Result<Vec<String>, BazofError> {
+        let version = self.read_version().await?;
+        self.get_data_files(&version, as_of).await
     }
 
-    pub async fn get_current_data_files(&self, as_of: AsOf) -> Result<Vec<String>, BazofError> {
-
-        let version = self.read_version().await?;
-        let snapshot_file = format!("s{}.json", version);
+    async fn get_data_files(&self, snapshot_id:&str, as_of: AsOf) -> Result<Vec<String>, BazofError> {
+        let snapshot_file = format!("s{}.json", snapshot_id);
         let snapshot = self.read_snapshot(snapshot_file.as_str()).await?;
         let files = snapshot.get_data_files(as_of);
         Ok(files)
