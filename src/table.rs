@@ -8,16 +8,20 @@ use crate::errors::BazofError;
 use crate::metadata::Snapshot;
 
 pub struct Table {
-    path: Path,
+    pub path: Path,
     store: Arc<dyn ObjectStore>
 }
 
 impl Table {
-    pub fn new(absolute_path: &str, store: Arc<dyn ObjectStore>) -> Self {
+    pub fn new(path: Path, store: Arc<dyn ObjectStore>) -> Self {
         Table {
-            path: Path::from(absolute_path),
+            path,
             store
         }
+    }
+
+    fn from_absolute_path(absolute_path: &str, store: Arc<dyn ObjectStore>) -> Self {
+        Self::new(Path::from(absolute_path),store)
     }
 
     pub async fn get_current_data_files(&self, as_of: AsOf) -> Result<Vec<String>, BazofError> {
@@ -54,7 +58,7 @@ impl Table {
 #[tokio::test]
 async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let store = Arc::new(InMemory::new());
-    let table = Table::new("bazof/table0", store.clone());
+    let table = Table::from_absolute_path("bazof/table0", store.clone());
 
     put_table_metadata( &store,"s1.json", String::from(r#"{
         "segments": [
