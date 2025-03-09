@@ -4,6 +4,8 @@ use std::sync::Arc;
 use arrow::compute::{sort_to_indices, take, SortOptions};
 use arrow_array::builder::{ArrayBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
+use arrow_array::cast::AsArray;
+use arrow_array::types::{Int64Type, TimestampMillisecondType};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use crate::errors::BazofError;
@@ -74,6 +76,23 @@ pub fn generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: us
 
 
     Ok(sort_batch_by_ts_desc(&batch)?)
+}
+
+pub fn print_batch(batch: &RecordBatch) -> () {
+    let key_arr = batch.column(0).as_primitive::<Int64Type>();
+    let val_arr = batch.column(1).as_string::<i32>();
+    let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
+
+    for row_idx in 0..batch.num_rows() {
+        let key_val = key_arr.value(row_idx);
+        let val_val = val_arr.value(row_idx);
+        let ts_val = ts_arr.value(row_idx);
+
+        println!(
+            "Row {}: Key: {}, Value: {}, Timestamp: {}",
+            row_idx, key_val, val_val, ts_val
+        );
+    }
 }
 
 fn sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, BazofError> {
