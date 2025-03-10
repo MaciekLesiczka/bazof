@@ -1,7 +1,6 @@
 extern crate core;
 
 mod metadata;
-mod scanner;
 mod errors;
 mod schema;
 mod test_bench;
@@ -11,17 +10,14 @@ mod lakehouse;
 
 use arrow_array::RecordBatch;
 use errors::BazofError;
-use parquet::arrow::{ArrowWriter, ParquetRecordBatchStreamBuilder};
+use parquet::arrow::ArrowWriter;
 use parquet::file::properties::WriterProperties;
 use std::sync::Arc;
 use std::fs;
-use parquet::arrow::async_reader::ParquetObjectReader;
-use arrow_array::cast::AsArray;
 use chrono::{TimeZone, Utc};
-use crate::test_bench::{csv_to_arrow, generate_random_batch, print_batch};
+use crate::test_bench::{csv_to_arrow, print_batch};
 use object_store::{path::Path, ObjectStore};
 use object_store::local::LocalFileSystem;
-use object_store::memory::InMemory;
 use crate::as_of::AsOf::{Current, Past};
 use crate::lakehouse::Lakehouse;
 
@@ -66,7 +62,6 @@ async fn main() {
 
 
     let past = Utc.with_ymd_and_hms(2024, 3, 1,0, 0, 0).unwrap();
-
     let result = lakehouse.scan("table0", Past(past)).await.unwrap();
     println!("Batch read from lakehouse:");
     print_batch(&result);

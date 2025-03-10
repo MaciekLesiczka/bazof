@@ -43,7 +43,7 @@ pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
     Ok(batch)
 }
 
-pub fn generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize) -> Result<RecordBatch, BazofError> {
+fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize) -> Result<RecordBatch, BazofError> {
     let mut rng = rand::rng();
     let mut used_pairs = HashSet::new();
 
@@ -75,7 +75,7 @@ pub fn generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: us
         ])?;
 
 
-    Ok(sort_batch_by_ts_desc(&batch)?)
+    Ok(_sort_batch_by_ts_desc(&batch)?)
 }
 
 pub fn print_batch(batch: &RecordBatch) -> () {
@@ -95,7 +95,7 @@ pub fn print_batch(batch: &RecordBatch) -> () {
     }
 }
 
-fn sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, BazofError> {
+fn _sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, BazofError> {
     let ts_column = batch.column(2);
 
     let sort_indices = sort_to_indices(ts_column, Some(SortOptions { descending: true, nulls_first: false }), None)?;
