@@ -19,5 +19,7 @@ pub enum BazofError {
     #[error("Store error: {0}")]
     StoreError(#[from] object_store::Error),
     #[error("Utf8 error: {0}")]
-    Utf8Error(#[from] FromUtf8Error)
+    Utf8Error(#[from] FromUtf8Error),
+    #[error("Value was None")]
+    NoneValue,
 }

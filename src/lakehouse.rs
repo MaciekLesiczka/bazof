@@ -12,10 +12,12 @@ use crate::schema::bazof_schema;
 use arrow::array::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
+use chrono::{DateTime, TimeZone, Utc};
 use object_store::local::LocalFileSystem;
 use parquet::arrow::async_reader::ParquetObjectReader;
 use parquet::arrow::ParquetRecordBatchStreamBuilder;
-use crate::as_of::AsOf::Current;
+use crate::as_of::AsOf::{Current, Past};
+use crate::test_bench::bazof_batch_to_hash_map;
 
 pub struct Lakehouse {
     path: Path,
@@ -61,8 +63,16 @@ impl Lakehouse {
                         let key_val = key_arr.value(row_idx);
 
                         if !seen.contains_key(&key_val) {
-                            let val_val = val_arr.value(row_idx).to_owned();
+
                             let ts_val = ts_arr.value(row_idx);
+
+                            let ts = DateTime::from_timestamp_millis(ts_val).ok_or(BazofError::NoneValue)?;
+                            if let Past(as_of_past) = as_of {
+                                if ts > as_of_past {
+                                    continue;
+                                }
+                            }
+                            let val_val = val_arr.value(row_idx).to_owned();
                             seen.insert(key_val, (val_val, ts_val));
                         }
                     }
@@ -102,21 +112,28 @@ async fn scan_table() -> Result<(), Box<dyn std::error::Error>> {
     let lakehouse = Lakehouse::new(lakehouse_dir, local_store);
 
     let result = lakehouse.scan("table0", Current).await?;
+    let result = bazof_batch_to_hash_map(&result);
 
-    let key_array = result.column(0).as_primitive::<Int64Type>();
-    let value_array = result.column(1).as_string::<i32>();
-    let mut result_map: HashMap<i64, String> = HashMap::new();
-    for i in 0..key_array.len() {
-        result_map.insert(key_array.value(i), value_array.value(i).to_string());
-    }
-
-    let expected_map: HashMap<i64, String> = HashMap::from([
+    let expected: HashMap<i64, String> = HashMap::from([
         (1, "abc2".to_string()),
         (2, "xyz2".to_string()),
         (3, "www2".to_string()),
     ]);
 
-    assert_eq!(result_map, expected_map);
+    assert_eq!(result, expected);
+
+
+    let past = Utc.with_ymd_and_hms(2024, 2, 17,0, 0, 0).unwrap();
+    let result = lakehouse.scan("table0", Past(past)).await?;
+
+    let result = bazof_batch_to_hash_map(&result);
+
+    let expected: HashMap<i64, String> = HashMap::from([
+        (1, "abc2".to_string()),
+        (2, "xyz".to_string()),
+    ]);
+
+    assert_eq!(result, expected);
 
     Ok(())
 }
