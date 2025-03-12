@@ -1,9 +1,9 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use crate::as_of::AsOf;
-use crate::errors::BazofError;
 use crate::as_of::AsOf::Current;
 use crate::as_of::AsOf::Past;
+use crate::errors::BazofError;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Snapshot {
     segments: Vec<Segment>,
@@ -124,9 +124,9 @@ mod timestamp_format {
 }
 
 mod optional_timestamp_format {
+    use super::timestamp_format::FORMAT;
     use chrono::{DateTime, Utc};
     use serde::{self, Deserialize, Deserializer, Serializer};
-    use super::timestamp_format::{FORMAT};
 
     pub fn serialize<S>(datetime: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -159,8 +159,8 @@ mod optional_timestamp_format {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Add;
     use chrono::{TimeDelta, TimeZone};
+    use std::ops::Add;
 
     use super::*;
     #[test]

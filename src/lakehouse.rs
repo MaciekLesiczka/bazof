@@ -1,43 +1,32 @@
-use std::sync::Arc;
-use arrow_array::RecordBatch;
-use object_store::ObjectStore;
-use object_store::path::{Path};
 use crate::as_of::AsOf;
 use crate::errors::BazofError;
 use crate::table::Table;
+use arrow_array::RecordBatch;
+use object_store::path::Path;
+use object_store::ObjectStore;
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::as_of::AsOf::Past;
 use crate::schema::bazof_schema;
-
 use arrow::array::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
-use chrono::{DateTime, TimeZone, Utc};
-use object_store::local::LocalFileSystem;
+use chrono::DateTime;
 use parquet::arrow::async_reader::ParquetObjectReader;
 use parquet::arrow::ParquetRecordBatchStreamBuilder;
-use crate::as_of::AsOf::{Current, Past};
-use crate::test_bench::bazof_batch_to_hash_map;
 
 pub struct Lakehouse {
     path: Path,
-    store: Arc<dyn ObjectStore>
+    store: Arc<dyn ObjectStore>,
 }
 
 impl Lakehouse {
     pub fn new(path: Path, store: Arc<dyn ObjectStore>) -> Self {
-        Lakehouse {
-            path,
-            store
-        }
+        Lakehouse { path, store }
     }
 
-    pub async fn scan(
-        &self,
-        table_name: &str,
-        as_of: AsOf,
-    ) -> Result<RecordBatch, BazofError> {
-
+    pub async fn scan(&self, table_name: &str, as_of: AsOf) -> Result<RecordBatch, BazofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let files = table.get_current_data_files(as_of).await?;
 
@@ -52,7 +41,7 @@ impl Lakehouse {
             let mut parquet_reader = builder.build()?;
 
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
-                while let Some (maybe_batch) = batch_result.next() {
+                while let Some(maybe_batch) = batch_result.next() {
                     let batch = maybe_batch?;
 
                     let key_arr = batch.column(0).as_primitive::<Int64Type>();
@@ -63,10 +52,10 @@ impl Lakehouse {
                         let key_val = key_arr.value(row_idx);
 
                         if !seen.contains_key(&key_val) {
-
                             let ts_val = ts_arr.value(row_idx);
 
-                            let ts = DateTime::from_timestamp_millis(ts_val).ok_or(BazofError::NoneValue)?;
+                            let ts = DateTime::from_timestamp_millis(ts_val)
+                                .ok_or(BazofError::NoneValue)?;
                             if let Past(as_of_past) = as_of {
                                 if ts > as_of_past {
                                     continue;
@@ -95,45 +84,58 @@ impl Lakehouse {
         let array_ts = Arc::new(ts_builder.finish());
 
         let schema = Arc::new(bazof_schema());
-        let batch = RecordBatch::try_new(
-            schema,
-            vec![array_key, array_value, array_ts],
-        )?;
+        let batch = RecordBatch::try_new(schema, vec![array_key, array_value, array_ts])?;
 
         Ok(batch)
     }
 }
 
-#[tokio::test]
-async fn scan_table() -> Result<(), Box<dyn std::error::Error>> {
-    let curr_dir = Path::from(std::env::current_dir()?.to_str().unwrap());
-    let local_store = Arc::new(LocalFileSystem::new());
-    let lakehouse_dir = curr_dir.child("test-data");
-    let lakehouse = Lakehouse::new(lakehouse_dir, local_store);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::as_of::AsOf::{Current, Past};
+    use chrono::{TimeZone, Utc};
+    use object_store::local::LocalFileSystem;
+    use object_store::path::Path;
 
-    let result = lakehouse.scan("table0", Current).await?;
-    let result = bazof_batch_to_hash_map(&result);
+    #[tokio::test]
+    async fn scan_table() -> Result<(), Box<dyn std::error::Error>> {
+        let curr_dir = Path::from(std::env::current_dir()?.to_str().unwrap());
+        let local_store = Arc::new(LocalFileSystem::new());
+        let lakehouse_dir = curr_dir.child("test-data");
+        let lakehouse = Lakehouse::new(lakehouse_dir, local_store);
 
-    let expected: HashMap<i64, String> = HashMap::from([
-        (1, "abc2".to_string()),
-        (2, "xyz2".to_string()),
-        (3, "www2".to_string()),
-    ]);
+        let result = lakehouse.scan("table0", Current).await?;
+        let result = bazof_batch_to_hash_map(&result);
 
-    assert_eq!(result, expected);
+        let expected: HashMap<i64, String> = HashMap::from([
+            (1, "abc2".to_string()),
+            (2, "xyz2".to_string()),
+            (3, "www2".to_string()),
+        ]);
 
+        assert_eq!(result, expected);
 
-    let past = Utc.with_ymd_and_hms(2024, 2, 17,0, 0, 0).unwrap();
-    let result = lakehouse.scan("table0", Past(past)).await?;
+        let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
+        let result = lakehouse.scan("table0", Past(past)).await?;
 
-    let result = bazof_batch_to_hash_map(&result);
+        let result = bazof_batch_to_hash_map(&result);
 
-    let expected: HashMap<i64, String> = HashMap::from([
-        (1, "abc2".to_string()),
-        (2, "xyz".to_string()),
-    ]);
+        let expected: HashMap<i64, String> =
+            HashMap::from([(1, "abc2".to_string()), (2, "xyz".to_string())]);
 
-    assert_eq!(result, expected);
+        assert_eq!(result, expected);
 
-    Ok(())
+        Ok(())
+    }
+
+    fn bazof_batch_to_hash_map(batch : &RecordBatch) -> HashMap<i64, String>{
+        let key_array = batch.column(0).as_primitive::<Int64Type>();
+        let value_array = batch.column(1).as_string::<i32>();
+        let mut result_map: HashMap<i64, String> = HashMap::new();
+        for i in 0..key_array.len() {
+            result_map.insert(key_array.value(i), value_array.value(i).to_string());
+        }
+        result_map
+    }
 }

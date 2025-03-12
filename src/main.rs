@@ -8,18 +8,18 @@ mod table;
 mod as_of;
 mod lakehouse;
 
-use arrow_array::RecordBatch;
-use errors::BazofError;
-use parquet::arrow::ArrowWriter;
-use parquet::file::properties::WriterProperties;
-use std::sync::Arc;
-use std::fs;
-use chrono::{TimeZone, Utc};
-use crate::test_bench::{csv_to_arrow, print_batch};
-use object_store::{path::Path, ObjectStore};
-use object_store::local::LocalFileSystem;
 use crate::as_of::AsOf::{Current, Past};
 use crate::lakehouse::Lakehouse;
+use crate::test_bench::{csv_to_arrow, print_batch};
+use arrow_array::RecordBatch;
+use chrono::{TimeZone, Utc};
+use errors::BazofError;
+use object_store::local::LocalFileSystem;
+use object_store::{path::Path, ObjectStore};
+use parquet::arrow::ArrowWriter;
+use parquet::file::properties::WriterProperties;
+use std::fs;
+use std::sync::Arc;
 
 fn arrow_to_parquet(batch : RecordBatch) -> Result<Vec<u8>, BazofError>{
     let mut buffer = Vec::new();

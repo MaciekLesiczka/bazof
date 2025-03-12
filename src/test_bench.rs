@@ -1,15 +1,15 @@
-use std::collections::HashSet;
-use std::str::FromStr;
-use std::sync::Arc;
-use arrow::compute::{sort_to_indices, take, SortOptions};
-use arrow_array::builder::{ArrayBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder};
-use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
-use arrow_array::cast::AsArray;
-use arrow_array::types::{Int64Type, TimestampMillisecondType};
-use chrono::{DateTime, Utc};
-use rand::Rng;
 use crate::errors::BazofError;
 use crate::schema::bazof_schema;
+use arrow::compute::{sort_to_indices, take, SortOptions};
+use arrow_array::builder::{ArrayBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder};
+use arrow_array::cast::AsArray;
+use arrow_array::types::{Int64Type, TimestampMillisecondType};
+use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
+use chrono::{DateTime, Utc};
+use rand::Rng;
+use std::collections::{HashSet};
+use std::str::FromStr;
+use std::sync::Arc;
 
 pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
     let mut keys = Int64Builder::new();
@@ -42,6 +42,7 @@ pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
     Ok(batch)
 }
+
 
 fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize) -> Result<RecordBatch, BazofError> {
     let mut rng = rand::rng();

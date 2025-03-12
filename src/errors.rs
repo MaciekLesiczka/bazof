@@ -1,7 +1,6 @@
-
-use std::string::FromUtf8Error;
 use arrow::error::ArrowError;
 use chrono::ParseError;
+use std::string::FromUtf8Error;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

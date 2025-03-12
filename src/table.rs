@@ -1,11 +1,8 @@
-use std::sync::Arc;
-use chrono::{TimeZone, Utc};
-use object_store::{path::Path, ObjectStore, PutPayload};
-use object_store::memory::InMemory;
 use crate::as_of::AsOf;
-use crate::as_of::AsOf::{Current, Past};
 use crate::errors::BazofError;
 use crate::metadata::Snapshot;
+use object_store::{path::Path, ObjectStore};
+use std::sync::Arc;
 
 pub struct Table {
     pub path: Path,
@@ -18,10 +15,6 @@ impl Table {
             path,
             store
         }
-    }
-
-    fn from_absolute_path(absolute_path: &str, store: Arc<dyn ObjectStore>) -> Self {
-        Self::new(Path::from(absolute_path),store)
     }
 
     pub async fn get_current_data_files(&self, as_of: AsOf) -> Result<Vec<String>, BazofError> {
@@ -54,13 +47,22 @@ impl Table {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::as_of::AsOf::{Current, Past};
+    use crate::table::Table;
+    use chrono::{TimeZone, Utc};
+    use object_store::memory::InMemory;
+    use object_store::path::Path;
+    use object_store::{ObjectStore, PutPayload};
+    use std::sync::Arc;
 
-#[tokio::test]
-async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
-    let store = Arc::new(InMemory::new());
-    let table = Table::from_absolute_path("bazof/table0", store.clone());
+    #[tokio::test]
+    async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
+        let store = Arc::new(InMemory::new());
+        let table = Table::new(Path::from("bazof/table0"), store.clone());
 
-    put_table_metadata( &store,"s1.json", String::from(r#"{
+        put_table_metadata( &store,"s1.json", String::from(r#"{
         "segments": [
             {
                 "id": "10",
@@ -70,7 +72,7 @@ async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
         ]
     }"#)).await;
 
-    put_table_metadata( &store,"s2.json", String::from(r#"{
+        put_table_metadata( &store,"s2.json", String::from(r#"{
         "segments": [
             {
                 "id": "10",
@@ -80,27 +82,27 @@ async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
         ]
     }"#)).await;
 
-    put_table_metadata( &store,"version.txt", String::from("1")).await;
+        put_table_metadata( &store,"version.txt", String::from("1")).await;
 
-    let files = table.get_data_files("1",Current).await?;
-    assert_eq!(files, vec!["base10.parquet".to_string()]);
+        let files = table.get_data_files("1",Current).await?;
+        assert_eq!(files, vec!["base10.parquet".to_string()]);
 
-    let past = Utc.with_ymd_and_hms(2020, 1, 17,0, 0, 0).unwrap();
-    let files = table.get_data_files("1", Past(past)).await?;
-    assert_eq!(files.len(),0);
+        let past = Utc.with_ymd_and_hms(2020, 1, 17,0, 0, 0).unwrap();
+        let files = table.get_data_files("1", Past(past)).await?;
+        assert_eq!(files.len(),0);
 
-    let files = table.get_data_files("2",Current).await?;
-    assert_eq!(files, vec!["base101.parquet".to_string()]);
+        let files = table.get_data_files("2",Current).await?;
+        assert_eq!(files, vec!["base101.parquet".to_string()]);
 
-    let files = table.get_current_data_files(Current).await?;
-    assert_eq!(files, vec!["base10.parquet".to_string()]);
+        let files = table.get_current_data_files(Current).await?;
+        assert_eq!(files, vec!["base10.parquet".to_string()]);
 
-    Ok(())
-}
+        Ok(())
+    }
 
-
-async fn put_table_metadata(store: &Arc<InMemory> , file_name : &str, data:String) {
-    let snapshot_path = Path::from("bazof/table0").child(file_name);
-    let put_payload = PutPayload::from(data.as_bytes().to_vec());
-    let _ = store.put(&snapshot_path,put_payload ).await;
+    async fn put_table_metadata(store: &Arc<InMemory> , file_name : &str, data:String) {
+        let snapshot_path = Path::from("bazof/table0").child(file_name);
+        let put_payload = PutPayload::from(data.as_bytes().to_vec());
+        let _ = store.put(&snapshot_path,put_payload ).await;
+    }
 }
