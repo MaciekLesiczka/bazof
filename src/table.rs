@@ -49,7 +49,7 @@ impl Table {
 
 #[cfg(test)]
 mod tests {
-    use crate::as_of::AsOf::{Current, Past};
+    use crate::as_of::AsOf::{Current, EventTime};
     use crate::table::Table;
     use chrono::{TimeZone, Utc};
     use object_store::memory::InMemory;
@@ -88,7 +88,7 @@ mod tests {
         assert_eq!(files, vec!["base10.parquet".to_string()]);
 
         let past = Utc.with_ymd_and_hms(2020, 1, 17,0, 0, 0).unwrap();
-        let files = table.get_data_files("1", Past(past)).await?;
+        let files = table.get_data_files("1", EventTime(past)).await?;
         assert_eq!(files.len(),0);
 
         let files = table.get_data_files("2",Current).await?;

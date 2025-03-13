@@ -8,7 +8,7 @@ mod table;
 mod as_of;
 mod lakehouse;
 
-use crate::as_of::AsOf::{Current, Past};
+use crate::as_of::AsOf::{Current, EventTime};
 use crate::lakehouse::Lakehouse;
 use crate::test_bench::{csv_to_arrow, print_batch};
 use arrow_array::RecordBatch;
@@ -62,7 +62,7 @@ async fn main() {
 
 
     let past = Utc.with_ymd_and_hms(2024, 3, 1,0, 0, 0).unwrap();
-    let result = lakehouse.scan("table0", Past(past)).await.unwrap();
+    let result = lakehouse.scan("table0", EventTime(past)).await.unwrap();
     println!("Batch read from lakehouse:");
     print_batch(&result);
 }

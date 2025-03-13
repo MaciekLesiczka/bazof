@@ -1,6 +1,6 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::Current;
-use crate::as_of::AsOf::Past;
+use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -67,7 +67,7 @@ impl Segment{
     fn is_in_range(&self, as_of: AsOf) -> bool {
         match as_of {
             Current => self.end.is_none(),
-            Past (as_of_time) => {
+            EventTime(as_of_time) => {
                 if let Some(end_time) = self.end {
                     self.start <= as_of_time && as_of_time <= end_time
                 } else {
@@ -91,7 +91,7 @@ impl Delta{
     pub fn is_before(&self, as_of: AsOf) -> bool {
         match as_of {
             Current => true,
-            Past (as_of_time) => {
+            EventTime(as_of_time) => {
                 self.start < as_of_time
             }
         }
@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
-        let files = snapshot.get_data_files(Past(start_of_month(2023,12)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2023, 12)));
 
         assert_eq!(files.len(), 0);
     }
@@ -339,11 +339,11 @@ mod tests {
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
 
-        let files = snapshot.get_data_files(Past(start_of_month(2024,1)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 1)));
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
-        let files = snapshot.get_data_files(Past(start_of_month(2024,2)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 2)));
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], String::from("base.parquet"));
 
@@ -351,10 +351,10 @@ mod tests {
 
         assert_eq!(files.len(), 0);
 
-        let files = snapshot.get_data_files(Past(start_of_month(2023,2)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2023, 2)));
         assert_eq!(files.len(), 0);
 
-        let files = snapshot.get_data_files(Past(start_of_month(2024,4)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 4)));
         assert_eq!(files.len(), 0);
     }
 
@@ -399,7 +399,7 @@ mod tests {
   ]
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
-        let mut files = snapshot.get_data_files(Past(start_of_month(2018,4)));
+        let mut files = snapshot.get_data_files(EventTime(start_of_month(2018, 4)));
 
         assert_eq!(files, vec![
             "base121.parquet".to_string(),
@@ -407,15 +407,15 @@ mod tests {
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Past(start_of_month(2022,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2022, 4)));
         assert_eq!(files.len(),0);
 
-        files = snapshot.get_data_files(Past(start_of_month(2011,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2011, 4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Past(start_of_month(2017,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2017, 4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
@@ -462,7 +462,7 @@ mod tests {
   ]
 }"#;
         let snapshot = Snapshot::deserialize(json_str).unwrap();
-        let mut files = snapshot.get_data_files(Past(start_of_month(2018,4)));
+        let mut files = snapshot.get_data_files(EventTime(start_of_month(2018, 4)));
 
         assert_eq!(files, vec![
             "base121.parquet".to_string(),
@@ -470,19 +470,19 @@ mod tests {
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Past(start_of_month(2022,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2022, 4)));
         assert_eq!(files, vec![
             "base122.parquet".to_string(),
             "base12.parquet".to_string(),
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Past(start_of_month(2011,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2011, 4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
 
-        files = snapshot.get_data_files(Past(start_of_month(2017,4)));
+        files = snapshot.get_data_files(EventTime(start_of_month(2017, 4)));
         assert_eq!(files, vec![
             "base10.parquet".to_string(),
         ]);
@@ -541,7 +541,7 @@ mod tests {
             "base10.parquet".to_string(),
         ]);
 
-        let files = snapshot.get_data_files(Past(start_of_month(2024,8)));
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 8)));
         assert_eq!(files, vec![
             "delta_102.parquet".to_string(),
             "delta_100.parquet".to_string(),

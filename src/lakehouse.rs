@@ -7,7 +7,7 @@ use object_store::ObjectStore;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::as_of::AsOf::Past;
+use crate::as_of::AsOf::EventTime;
 use crate::schema::bazof_schema;
 use arrow::array::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::cast::AsArray;
@@ -56,8 +56,8 @@ impl Lakehouse {
 
                             let ts = DateTime::from_timestamp_millis(ts_val)
                                 .ok_or(BazofError::NoneValue)?;
-                            if let Past(as_of_past) = as_of {
-                                if ts > as_of_past {
+                            if let EventTime(event_time) = as_of {
+                                if ts > event_time {
                                     continue;
                                 }
                             }
@@ -93,7 +93,7 @@ impl Lakehouse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::as_of::AsOf::{Current, Past};
+    use crate::as_of::AsOf::{Current, EventTime};
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
@@ -117,7 +117,7 @@ mod tests {
         assert_eq!(result, expected);
 
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table0", Past(past)).await?;
+        let result = lakehouse.scan("table0", EventTime(past)).await?;
 
         let result = bazof_batch_to_hash_map(&result);
 

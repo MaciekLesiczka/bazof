@@ -4,5 +4,5 @@ use chrono::{DateTime, Utc};
 #[derive(Clone)]
 pub enum AsOf {
     Current,
-    Past(DateTime<Utc>),
+    EventTime(DateTime<Utc>),
 }
