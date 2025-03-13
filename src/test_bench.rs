@@ -1,20 +1,18 @@
 use crate::errors::BazofError;
-use crate::schema::bazof_schema;
+use crate::schema::{array_builders, to_batch};
 use arrow::compute::{sort_to_indices, take, SortOptions};
-use arrow_array::builder::{ArrayBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder};
+use arrow_array::builder::ArrayBuilder;
 use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
-use arrow_array::{Int64Array, RecordBatch, StringArray, TimestampMillisecondArray};
+use arrow_array::RecordBatch;
 use chrono::{DateTime, Utc};
 use rand::Rng;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::str::FromStr;
-use std::sync::Arc;
+
 
 pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
-    let mut keys = Int64Builder::new();
-    let mut values = StringBuilder::new();
-    let mut timestamps = TimestampMillisecondBuilder::new().with_timezone("UTC");
+    let (mut keys, mut values, mut timestamps) = array_builders();
 
     for line in csv.split('\n'){
         let parts: Vec<&str> = line.split(',').collect();
@@ -29,28 +27,16 @@ pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
         timestamps.append_value(ts);
     }
-    let keys_array: Int64Array = keys.finish();
-    let values_array: StringArray = values.finish();
-    let ts_array : TimestampMillisecondArray = timestamps.finish();
 
-    let batch = RecordBatch::try_new(
-        Arc::new(bazof_schema().into()), vec![
-            Arc::new(keys_array),
-            Arc::new(values_array),
-            Arc::new(ts_array)
-        ])?;
+    Ok(to_batch(keys,values, timestamps)?)
 
-    Ok(batch)
 }
-
 
 fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize) -> Result<RecordBatch, BazofError> {
     let mut rng = rand::rng();
     let mut used_pairs = HashSet::new();
 
-    let mut keys = Int64Builder::new();
-    let mut values = StringBuilder::new();
-    let mut timestamps = TimestampMillisecondBuilder::new().with_timezone("UTC");
+    let (mut keys, mut values, mut timestamps) = array_builders();
 
     while keys.len() < num_rows {
         let key = rng.random_range(0..num_keys as i64);
@@ -63,18 +49,7 @@ fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize
         }
     }
 
-    let keys_array: Int64Array = keys.finish();
-    let values_array: StringArray = values.finish();
-    let ts_array : TimestampMillisecondArray = timestamps.finish();
-
-
-    let batch = RecordBatch::try_new(
-        Arc::new(bazof_schema().into()), vec![
-            Arc::new(keys_array),
-            Arc::new(values_array),
-            Arc::new(ts_array)
-        ])?;
-
+    let batch = to_batch(keys,values, timestamps)?;
 
     Ok(_sort_batch_by_ts_desc(&batch)?)
 }

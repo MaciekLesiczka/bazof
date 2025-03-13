@@ -8,8 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::as_of::AsOf::EventTime;
-use crate::schema::bazof_schema;
-use arrow::array::{Int64Builder, StringBuilder, TimestampMillisecondBuilder};
+use crate::schema::{array_builders, to_batch};
 use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
 use chrono::DateTime;
@@ -69,24 +68,15 @@ impl Lakehouse {
             }
         }
 
-        let mut key_builder = Int64Builder::new();
-        let mut value_builder = StringBuilder::new();
-        let mut ts_builder = TimestampMillisecondBuilder::new().with_timezone("UTC");
+        let (mut keys, mut values, mut timestamps) = array_builders();
 
         for (key, (value, ts)) in seen {
-            key_builder.append_value(key);
-            value_builder.append_value(value);
-            ts_builder.append_value(ts);
+            keys.append_value(key);
+            values.append_value(value);
+            timestamps.append_value(ts);
         }
 
-        let array_key = Arc::new(key_builder.finish());
-        let array_value = Arc::new(value_builder.finish());
-        let array_ts = Arc::new(ts_builder.finish());
-
-        let schema = Arc::new(bazof_schema());
-        let batch = RecordBatch::try_new(schema, vec![array_key, array_value, array_ts])?;
-
-        Ok(batch)
+        Ok(to_batch(keys,values, timestamps)?)
     }
 }
 
