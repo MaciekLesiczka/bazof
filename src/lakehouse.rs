@@ -40,9 +40,7 @@ impl Lakehouse {
             let mut parquet_reader = builder.build()?;
 
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
-                while let Some(maybe_batch) = batch_result.next() {
-                    let batch = maybe_batch?;
-
+                while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_primitive::<Int64Type>();
                     let val_arr = batch.column(1).as_string::<i32>();
                     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
