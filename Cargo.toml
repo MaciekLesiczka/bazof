@@ -1,7 +1,14 @@
 [package]
 name = "bazof"
 version = "0.1.0"
+authors = ["Maciej Lesiczka <maciej.lesiczka@gmail.com>"]
 edition = "2021"
+description = "Lakehouse format with event time travel"
+repository = "https://github.com/MaciekLesiczka/bazof"
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["lakehouse", "event", "time-travel", "data-lake", "parquet"]
+categories = ["database", "data-structures", "data-lake", "lakehouse"]
 
 [dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
