@@ -10,6 +10,14 @@ readme = "README.md"
 keywords = ["lakehouse", "event", "time-travel", "data-lake", "parquet"]
 categories = ["database", "data-structures", "data-lake", "lakehouse"]
 
+[lib]
+name = "bazof"
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "bazof-app"
+path = "src/main.rs"
+
 [dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
