@@ -3,12 +3,11 @@ use crate::schema::{array_builders, to_batch};
 use arrow::compute::{sort_to_indices, take, SortOptions};
 use arrow_array::builder::ArrayBuilder;
 use arrow_array::cast::AsArray;
-use arrow_array::types::{Int64Type, TimestampMillisecondType};
+use arrow_array::types::{TimestampMillisecondType};
 use arrow_array::RecordBatch;
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
-use std::str::FromStr;
 
 
 pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
@@ -16,9 +15,8 @@ pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
 
     for line in csv.split('\n'){
         let parts: Vec<&str> = line.split(',').collect();
-        let key = i64::from_str(parts[0])?;
 
-        keys.append_value(key);
+        keys.append_value(parts[0]);
         values.append_value(parts[1]);
 
         let ts = DateTime::parse_from_rfc3339(parts[2])
@@ -43,7 +41,7 @@ fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize
         let ts = rng.random_range(ts_range.0..ts_range.1);
 
         if used_pairs.insert((key, ts)) {
-            keys.append_value(key);
+            keys.append_value(key.to_string());
             values.append_value(format!("val_{}", rng.random::<u32>()));
             timestamps.append_value(ts);
         }
@@ -55,7 +53,7 @@ fn _generate_random_batch(num_rows: usize, ts_range: (i64, i64), num_keys: usize
 }
 
 pub fn print_batch(batch: &RecordBatch) -> () {
-    let key_arr = batch.column(0).as_primitive::<Int64Type>();
+    let key_arr = batch.column(0).as_string::<i32>();
     let val_arr = batch.column(1).as_string::<i32>();
     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
 

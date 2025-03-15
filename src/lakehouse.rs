@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::as_of::AsOf::EventTime;
 use crate::schema::{array_builders, to_batch};
 use arrow_array::cast::AsArray;
-use arrow_array::types::{Int64Type, TimestampMillisecondType};
+use arrow_array::types::{TimestampMillisecondType};
 use chrono::DateTime;
 use parquet::arrow::async_reader::ParquetObjectReader;
 use parquet::arrow::ParquetRecordBatchStreamBuilder;
@@ -29,7 +29,7 @@ impl Lakehouse {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let files = table.get_current_data_files(as_of).await?;
 
-        let mut seen: HashMap<i64, (String, i64)> = HashMap::new();
+        let mut seen: HashMap<String, (String, i64)> = HashMap::new();
 
         for file in files {
             let full_path = table.path.child(file);
@@ -41,12 +41,12 @@ impl Lakehouse {
 
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
-                    let key_arr = batch.column(0).as_primitive::<Int64Type>();
+                    let key_arr = batch.column(0).as_string::<i32>();
                     let val_arr = batch.column(1).as_string::<i32>();
                     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
-                        let key_val = key_arr.value(row_idx);
+                        let key_val = key_arr.value(row_idx).to_owned();
 
                         if !seen.contains_key(&key_val) {
                             let ts_val = ts_arr.value(row_idx);
@@ -80,6 +80,7 @@ impl Lakehouse {
 
 #[cfg(test)]
 mod tests {
+    use arrow_array::Array;
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
     use chrono::{TimeZone, Utc};
@@ -96,10 +97,10 @@ mod tests {
         let result = lakehouse.scan("table0", Current).await?;
         let result = bazof_batch_to_hash_map(&result);
 
-        let expected: HashMap<i64, String> = HashMap::from([
-            (1, "abc2".to_string()),
-            (2, "xyz2".to_string()),
-            (3, "www2".to_string()),
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc2".to_string()),
+            (2.to_string(), "xyz2".to_string()),
+            (3.to_string(), "www2".to_string()),
         ]);
 
         assert_eq!(result, expected);
@@ -109,20 +110,20 @@ mod tests {
 
         let result = bazof_batch_to_hash_map(&result);
 
-        let expected: HashMap<i64, String> =
-            HashMap::from([(1, "abc2".to_string()), (2, "xyz".to_string())]);
+        let expected: HashMap<String, String> =
+            HashMap::from([(1.to_string(), "abc2".to_string()), (2.to_string(), "xyz".to_string())]);
 
         assert_eq!(result, expected);
 
         Ok(())
     }
 
-    fn bazof_batch_to_hash_map(batch : &RecordBatch) -> HashMap<i64, String>{
-        let key_array = batch.column(0).as_primitive::<Int64Type>();
+    fn bazof_batch_to_hash_map(batch : &RecordBatch) -> HashMap<String, String>{
+        let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
-        let mut result_map: HashMap<i64, String> = HashMap::new();
+        let mut result_map: HashMap<String, String> = HashMap::new();
         for i in 0..key_array.len() {
-            result_map.insert(key_array.value(i), value_array.value(i).to_string());
+            result_map.insert(key_array.value(i).to_owned(), value_array.value(i).to_owned());
         }
         result_map
     }
