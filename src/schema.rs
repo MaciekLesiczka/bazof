@@ -25,6 +25,6 @@ fn bazof_schema() -> Schema {
         vec![
             Field::new("key", DataType::Utf8, false),
             Field::new("value", DataType::Utf8, false),
-            Field::new("ts", DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())), false),
+            Field::new("event_time", DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())), false),
         ])
 }
