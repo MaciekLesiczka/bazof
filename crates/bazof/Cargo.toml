@@ -1,0 +1,22 @@
+[package]
+name = "bazof"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Lakehouse format with event time travel"
+repository.workspace = true
+license.workspace = true
+readme = "../../README.md"
+keywords = ["lakehouse", "event", "time-travel", "data-lake", "parquet"]
+categories = ["database", "data-structures", "data-lake", "lakehouse"]
+
+[dependencies]
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+chrono = "0.4.39"
+arrow-array = "54.2.0"
+arrow = "54.2.0"
+thiserror = "2.0.11"
+parquet = { version = "54.2.0", features = ["async", "object_store"] }
+object_store = "0.11.2"
+tokio = { version = "1", features = ["full"] }

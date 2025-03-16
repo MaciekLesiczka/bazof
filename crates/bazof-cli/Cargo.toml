@@ -1,0 +1,23 @@
+[package]
+name = "bazof-cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "CLI utility for bazof lakehouse format"
+repository.workspace = true
+license.workspace = true
+readme = "../../README.md"
+
+[[bin]]
+name = "bazof-cli"
+path = "src/main.rs"
+
+[dependencies]
+bazof = { path = "../bazof" }
+tokio = { version = "1", features = ["full"] }
+arrow-array = "54.2.0"
+arrow = "54.2.0"
+chrono = "0.4.39"
+parquet = { version = "54.2.0", features = ["async", "object_store"] }
+object_store = "0.11.2"
+rand = "0.9.0"
