@@ -11,7 +11,6 @@ The Bazof project is organized as a Rust workspace with multiple crates:
 - **bazof**: The core library providing the lakehouse format functionality
 - **bazof-cli**: A CLI utility demonstrating how to use the library
 - **bazof-datafusion**: DataFusion integration for SQL queries
-- **test-data**: Testing data used by both tests and examples (located at workspace root)
 
 ## Getting Started
 
@@ -26,14 +25,11 @@ cargo build --workspace
 The bazof-cli provides a command-line interface for interacting with bazof:
 
 ```bash
-# Generate test parquet files from CSVs
-cargo run -p bazof-cli -- gen
-
 # Scan a table (current version)
-cargo run -p bazof-cli -- scan --path /path/to/lakehouse --table table_name
+cargo run -p bazof-cli -- scan --path ./test-data --table table0
 
 # Scan a table as of a specific event time
-cargo run -p bazof-cli -- scan --path /path/to/lakehouse --table table_name --as-of "2024-03-15T14:30:00"
+cargo run -p bazof-cli -- scan --path ./test-data --table table0 --as-of "2024-03-15T14:30:00"
 ```
 
 ## DataFusion Integration
@@ -51,24 +47,21 @@ use bazof_datafusion::BazofTableProvider;
 use datafusion::prelude::*;
 
 async fn query_bazof() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a DataFusion session
     let ctx = SessionContext::new();
     
-    // Create a BazofTableProvider for the current version
-    let provider = BazofTableProvider::current(
-        store_path, 
-        store, 
-        "table_name".to_string()
+    let event_time = Utc.with_ymd_and_hms(2019, 1, 17, 0, 0, 0).unwrap();
+    
+    let provider = BazofTableProvider::as_of(
+        store_path.clone(), 
+        local_store.clone(), 
+        "ltm_revenue".to_string(),
+        event_time
     )?;
     
-    // Register the table with DataFusion
-    ctx.register_table("my_table", Arc::new(provider))?;
+    ctx.register_table("ltm_revenue_jan17", Arc::new(provider))?;
     
-    // Run SQL queries
-    let df = ctx.sql("SELECT * FROM my_table WHERE key = '1'").await?;
+    let df = ctx.sql("SELECT key as symbol, value as revenue FROM ltm_revenue_jan17 WHERE key IN ('AAPL', 'GOOG') ORDER BY key").await?;
     df.show().await?;
-    
-    Ok(())
 }
 ```
 
@@ -81,8 +74,7 @@ cargo run --example query_example -p bazof-datafusion
 If you install the CLI with `cargo install --path crates/bazof-cli`, you can run it directly with:
 
 ```bash
-bazof-cli gen
-bazof-cli scan --path /path/to/lakehouse --table table_name
+bazof-cli scan --path ./test-data --table table0
 ```
 
 ## Project Roadmap
@@ -104,6 +96,7 @@ Bazof is under development. The goal is to implement a data lakehouse with the f
 
 ### Milestone 1
 
+ - [ ] Multiple columns support
  - [ ] Single row, key-value writer
  - [ ] Document spec
  - [ ] Delta -> snapshot compaction
@@ -113,3 +106,4 @@ Bazof is under development. The goal is to implement a data lakehouse with the f
 - [ ] Streaming in scan
 - [ ] Schema definition and evolution
 - [ ] Late-arriving data support
+

@@ -25,42 +25,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let ctx = SessionContext::new();
     
-    // Example 1: Query the current version of the table
-    println!("Querying current version of table0:");
+    println!("Querying Last 12 months sales for Apple and Google");
     let provider = BazofTableProvider::current(
         store_path.clone(), 
         local_store.clone(), 
-        "table0".to_string()
+        "ltm_revenue".to_string()
     )?;
     
-    // Register the table with DataFusion
-    ctx.register_table("table0_current", Arc::new(provider))?;
+    ctx.register_table("ltm_revenue", Arc::new(provider))?;
     
-    // Execute a SQL query
-    let df = ctx.sql("SELECT * FROM table0_current ORDER BY key").await?;
+    let df = ctx.sql("SELECT key as symbol, value as revenue FROM ltm_revenue WHERE key IN ('AAPL', 'GOOG') ORDER BY key").await?;
     df.show().await?;
     
-    // Example 2: Query the table as of a specific time
-    println!("\nQuerying table0 as of 2024-02-15:");
-    let event_time = Utc.with_ymd_and_hms(2024, 2, 15, 0, 0, 0).unwrap();
+    println!("\nQuerying Last 12 months sales for Apple and Google as of 2019-01-17");
+    let event_time = Utc.with_ymd_and_hms(2019, 1, 17, 0, 0, 0).unwrap();
     
     let provider = BazofTableProvider::as_of(
         store_path.clone(), 
         local_store.clone(), 
-        "table0".to_string(),
+        "ltm_revenue".to_string(),
         event_time
     )?;
     
     // Register the table with DataFusion
-    ctx.register_table("table0_feb15", Arc::new(provider))?;
+    ctx.register_table("ltm_revenue_jan17", Arc::new(provider))?;
     
-    let df = ctx.sql("SELECT * FROM table0_feb15 ORDER BY key").await?;
+    let df = ctx.sql("SELECT key as symbol, value as revenue FROM ltm_revenue_jan17 WHERE key IN ('AAPL', 'GOOG') ORDER BY key").await?;
     df.show().await?;
-    
-    // Example 3: More complex query with projection and filtering
-    println!("\nQuerying with projection and filtering:");
-    let df = ctx.sql("SELECT key, value FROM table0_current WHERE key = '2'").await?;
-    df.show().await?;
+
     
     Ok(())
 }
