@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/bazof",
     "crates/bazof-cli",
+    "crates/bazof-datafusion",
 ]
 
 [workspace.package]
