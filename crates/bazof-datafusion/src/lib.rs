@@ -9,16 +9,20 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef, TimeUnit}
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::{DataFusionError, Result};
 use datafusion::datasource::{TableProvider, TableType};
-use datafusion::execution::context::SessionState;
+use datafusion::execution::context::TaskContext;
 use datafusion::logical_expr::Expr;
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, RecordBatchStream, SendableRecordBatchStream};
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, SendableRecordBatchStream};
 use datafusion::physical_plan::metrics::MetricsSet;
-use datafusion::physical_plan::expressions::PhysicalSortExpr;
 use datafusion::physical_plan::memory::MemoryStream;
+use datafusion::physical_expr::EquivalenceProperties;
+use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use object_store::path::Path;
 use object_store::ObjectStore;
+use datafusion::catalog::Session;
+use datafusion::physical_plan::PlanProperties;
+use datafusion::physical_plan::Partitioning;
 
-/// A TableProvider implementation for Bazof lakehouse format
+
 pub struct BazofTableProvider {
     lakehouse: Arc<Lakehouse>,
     table_name: String,
@@ -44,7 +48,6 @@ impl Debug for BazofTableProvider {
 }
 
 impl BazofTableProvider {
-    /// Create a new BazofTableProvider
     pub fn new(
         store_path: Path, 
         store: Arc<dyn ObjectStore>, 
@@ -53,7 +56,6 @@ impl BazofTableProvider {
     ) -> Result<Self> {
         let lakehouse = Arc::new(Lakehouse::new(store_path, store));
         
-        // Create a schema for the table - we know bazof tables always have the same schema
         let schema = Arc::new(Schema::new(vec![
             Field::new("key", DataType::Utf8, false),
             Field::new("value", DataType::Utf8, false),
@@ -68,7 +70,6 @@ impl BazofTableProvider {
         })
     }
     
-    /// Create a new BazofTableProvider with the current version
     pub fn current(
         store_path: Path, 
         store: Arc<dyn ObjectStore>, 
@@ -77,7 +78,6 @@ impl BazofTableProvider {
         Self::new(store_path, store, table_name, AsOf::Current)
     }
     
-    /// Create a new BazofTableProvider with a specific event time
     pub fn as_of(
         store_path: Path, 
         store: Arc<dyn ObjectStore>, 
@@ -104,12 +104,11 @@ impl TableProvider for BazofTableProvider {
 
     async fn scan(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
-        // Create a physical execution plan that will lazily read the table
         let exec = BazofExec::new(
             self.lakehouse.clone(),
             self.table_name.clone(),
@@ -122,13 +121,13 @@ impl TableProvider for BazofTableProvider {
     }
 }
 
-/// An ExecutionPlan implementation for Bazof lakehouse format
 pub struct BazofExec {
     lakehouse: Arc<Lakehouse>,
     table_name: String,
     as_of: AsOf,
     projected_schema: SchemaRef,
     projection: Option<Vec<usize>>,
+    cache: PlanProperties,
 }
 
 impl Debug for BazofExec {
@@ -149,12 +148,12 @@ impl Clone for BazofExec {
             as_of: self.as_of,
             projected_schema: self.projected_schema.clone(),
             projection: self.projection.clone(),
+            cache: self.cache.clone(),
         }
     }
 }
 
 impl BazofExec {
-    /// Create a new BazofExec
     pub fn new(
         lakehouse: Arc<Lakehouse>,
         table_name: String,
@@ -162,7 +161,6 @@ impl BazofExec {
         projection: Option<Vec<usize>>,
         schema: SchemaRef,
     ) -> Self {
-        // Compute the projected schema
         let projected_schema = match &projection {
             Some(indices) => {
                 let fields = indices
@@ -174,13 +172,27 @@ impl BazofExec {
             None => schema,
         };
         
+        let cache = Self::compute_properties(projected_schema.clone());
+        
         Self {
             lakehouse,
             table_name,
             as_of,
             projected_schema,
             projection,
+            cache,
         }
+    }
+    
+    fn compute_properties(schema: SchemaRef) -> PlanProperties {
+        let eq_properties = EquivalenceProperties::new(schema);
+        
+        PlanProperties::new(
+            eq_properties,
+            Partitioning::UnknownPartitioning(1),
+            EmissionType::Incremental,
+            Boundedness::Bounded,
+        )
     }
 }
 
@@ -217,43 +229,39 @@ impl ExecutionPlan for BazofExec {
     fn metrics(&self) -> Option<MetricsSet> {
         None
     }
-
+    
+    fn properties(&self) -> &PlanProperties {
+        &self.cache
+    }
 
     fn execute(
         &self,
         _partition: usize,
-        _context: Arc<datafusion::execution::TaskContext>,
+        _context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream> {
-        // Clone values needed for the execution
         let lakehouse = self.lakehouse.clone();
         let table_name = self.table_name.clone();
         let as_of = self.as_of;
         let projection = self.projection.clone();
         let schema = self.projected_schema.clone();
         
-        // Create a one-shot task that fetches data
         let fut = async move {
-            // Fetch the data from Bazof
             let batch = lakehouse.scan(&table_name, as_of).await
                 .map_err(|e| DataFusionError::Execution(format!("Error scanning Bazof table: {}", e)))?;
             
-            // Apply projection if needed
             let projected_batch = match projection {
                 Some(indices) => {
-                    // Get only the requested columns
                     let projected_columns = indices
                         .iter()
                         .map(|&i| batch.column(i).clone())
                         .collect::<Vec<_>>();
                     
-                    // Create a new batch with the projected columns
                     RecordBatch::try_new(
                         schema,
                         projected_columns,
                     )?
                 }
                 None => {
-                    // Use the batch as is, just ensure it uses the right schema
                     RecordBatch::try_new(
                         schema,
                         batch.columns().to_vec(),
@@ -261,13 +269,11 @@ impl ExecutionPlan for BazofExec {
                 }
             };
             
-            Ok(vec![projected_batch])
+            Ok::<Vec<RecordBatch>, DataFusionError>(vec![projected_batch])
         };
         
-        // Execute the future and get the result
         let batches = futures::executor::block_on(fut)?;
         
-        // Create a memory stream from the batches
         Ok(Box::pin(MemoryStream::try_new(
             batches,
             self.projected_schema.clone(),

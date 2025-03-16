@@ -9,35 +9,20 @@ use object_store::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Build path to test-data at workspace root level
     let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    workspace_dir.pop(); // Go up from crates/bazof-datafusion
-    workspace_dir.pop(); // Go up from crates
+    workspace_dir.pop();
+    workspace_dir.pop();
     
     let test_data_path = workspace_dir.join("test-data");
-    println!("Using test data path: {}", test_data_path.display());
     
     let absolute_path = test_data_path.canonicalize()?;
-    println!("Absolute path: {}", absolute_path.display());
     
-    // Convert to string representation that object_store can use
     let path_str = absolute_path.to_string_lossy().to_string();
-    // Make sure it's a valid URI format for object_store
-    let path_str = if cfg!(windows) {
-        // For Windows, ensure path has the right format
-        format!("/{}", path_str.replace("\\", "/"))
-    } else {
-        // For Unix-like systems
-        path_str
-    };
     
-    println!("Path string for object_store: {}", path_str);
     let store_path = Path::from(path_str);
     
-    // Create the local object store
     let local_store = Arc::new(LocalFileSystem::new());
     
-    // Create the DataFusion session context
     let ctx = SessionContext::new();
     
     // Example 1: Query the current version of the table
@@ -69,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Register the table with DataFusion
     ctx.register_table("table0_feb15", Arc::new(provider))?;
     
-    // Execute a SQL query
     let df = ctx.sql("SELECT * FROM table0_feb15 ORDER BY key").await?;
     df.show().await?;
     

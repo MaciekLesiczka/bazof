@@ -83,7 +83,6 @@ async fn generate_parquet_test_files() -> Result<(), Box<dyn std::error::Error>>
 
 async fn scan_table(path: PathBuf, table_name: String, as_of_str: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     let as_of = if let Some(timestamp_str) = as_of_str {
-        // Parse timestamp string (YYYY-MM-DDTHH:mm:ss)
         let timestamp = DateTime::parse_from_rfc3339(&format!("{}.000Z", timestamp_str))
             .map_err(|e| Box::<dyn std::error::Error>::from(
                 format!("Invalid timestamp format. Expected YYYY-MM-DDTHH:mm:ss, got: {}. Error: {}", 
@@ -96,13 +95,11 @@ async fn scan_table(path: PathBuf, table_name: String, as_of_str: Option<String>
         Current
     };
     
-    // Convert the PathBuf to a canonical absolute path first
     let absolute_path = path.canonicalize()
         .map_err(|e| Box::<dyn std::error::Error>::from(
             format!("Error resolving path {}: {}", path.display(), e)
         ))?;
     
-    // Then convert to a string and create an object_store Path
     let store_path = Path::from(absolute_path.to_string_lossy().to_string());
     
     println!("Using lakehouse path: {}", absolute_path.display());
