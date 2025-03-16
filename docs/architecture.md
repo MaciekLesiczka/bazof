@@ -25,16 +25,16 @@ Bazof organizes data through a hierarchical structure of segments and delta file
 │                       ┌──────────────────┐                        │
 │                       │ base10.parquet   │                        │
 │                       │ 2022-01 to now   │                        │
-│                       │ (snapshot @ 2022-01) │                    │
+│                       │ (snapshot @ 2022-01)                      │
 │                       └─────────┬────────┘                        │
 │                                 │                                 │
 │         ┌───────────────────────┴───────────────────┐             │
 │         │                                           │             │
-│  ┌──────┴─────────┐                        ┌────────┴────┴───┐    │
+│  ┌──────┴─────────┐                        ┌────────┴────────┐    │
 │  │  Segment 11    │                        │   Segment 12    │    │    
 │  │ 2022-01 to     │                        │   2023-01 to    │    │    
 │  │ 2022-12        │                        │   now           │    │    
-│  │ (subrange of parent) │                  │ (subrange of parent) │
+│  │ (subrange of parent)                    │ (subrange of parent) │
 │  └──────┬─────────┘                        └────────┬────────┘    │
 │         │                                           │             │
 │    ┌────┴─────┐                                ┌────┴─────┐       │
@@ -49,7 +49,7 @@ Bazof organizes data through a hierarchical structure of segments and delta file
 
 #### Segments
 
-- A **segment** is a logical partition of data, typically covering a specific time range
+- A **segment** is a logical partition of data, covering a specific time range
 - Each segment may have:
   - A base file (e.g., `base10.parquet`) containing a snapshot of data at the segment's start time
   - Child segments that each cover a subrange of the parent segment's time period
