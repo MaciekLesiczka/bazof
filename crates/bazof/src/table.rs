@@ -34,16 +34,16 @@ impl Table {
         let snapshot_path = self.path.child(file_name);
         let file = self.store.get(&snapshot_path).await?;
         let reader = file.bytes().await?;
-        let result = String::from_utf8(reader.to_vec())?; // Convert to String
+        let result = String::from_utf8(reader.to_vec())?;
 
-        Ok(Snapshot::deserialize(&result)?)
+        Snapshot::deserialize(&result)
     }
 
     async fn read_version(&self) -> Result<String, BazofError> {
         let snapshot_path = self.path.child("version.txt");
         let file = self.store.get(&snapshot_path).await?;
         let reader = file.bytes().await?;
-        let result = String::from_utf8(reader.to_vec())?; // Convert to String
+        let result = String::from_utf8(reader.to_vec())?;
         Ok(result)
     }
 }

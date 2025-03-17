@@ -48,7 +48,7 @@ impl Lakehouse {
                     for row_idx in 0..batch.num_rows() {
                         let key_val = key_arr.value(row_idx).to_owned();
 
-                        if !seen.contains_key(&key_val) {
+                        if let std::collections::hash_map::Entry::Vacant(e) = seen.entry(key_val) {
                             let ts_val = ts_arr.value(row_idx);
 
                             let ts = DateTime::from_timestamp_millis(ts_val)
@@ -59,7 +59,7 @@ impl Lakehouse {
                                 }
                             }
                             let val_val = val_arr.value(row_idx).to_owned();
-                            seen.insert(key_val, (val_val, ts_val));
+                            e.insert((val_val, ts_val));
                         }
                     }
                 }

@@ -51,10 +51,10 @@ fn _generate_random_batch(
 
     let batch = to_batch(keys, values, timestamps)?;
 
-    Ok(_sort_batch_by_ts_desc(&batch)?)
+    _sort_batch_by_ts_desc(&batch)
 }
 
-pub fn print_batch(batch: &RecordBatch) -> () {
+pub fn print_batch(batch: &RecordBatch) {
     let key_arr = batch.column(0).as_string::<i32>();
     let val_arr = batch.column(1).as_string::<i32>();
     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
