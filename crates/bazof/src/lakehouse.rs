@@ -74,15 +74,15 @@ impl Lakehouse {
             timestamps.append_value(ts);
         }
 
-        Ok(to_batch(keys,values, timestamps)?)
+        Ok(to_batch(keys, values, timestamps)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use arrow_array::Array;
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
+    use arrow_array::Array;
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
@@ -93,10 +93,10 @@ mod tests {
         let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         workspace_dir.pop();
         workspace_dir.pop();
-        
+
         let test_data_path = workspace_dir.join("test-data");
         let curr_dir = Path::from(test_data_path.to_str().unwrap());
-        
+
         let local_store = Arc::new(LocalFileSystem::new());
         let lakehouse = Lakehouse::new(curr_dir, local_store);
 
@@ -116,20 +116,25 @@ mod tests {
 
         let result = bazof_batch_to_hash_map(&result);
 
-        let expected: HashMap<String, String> =
-            HashMap::from([(1.to_string(), "abc2".to_string()), (2.to_string(), "xyz".to_string())]);
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc2".to_string()),
+            (2.to_string(), "xyz".to_string()),
+        ]);
 
         assert_eq!(result, expected);
 
         Ok(())
     }
 
-    fn bazof_batch_to_hash_map(batch : &RecordBatch) -> HashMap<String, String>{
+    fn bazof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
         let mut result_map: HashMap<String, String> = HashMap::new();
         for i in 0..key_array.len() {
-            result_map.insert(key_array.value(i).to_owned(), value_array.value(i).to_owned());
+            result_map.insert(
+                key_array.value(i).to_owned(),
+                value_array.value(i).to_owned(),
+            );
         }
         result_map
     }

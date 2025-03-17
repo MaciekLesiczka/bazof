@@ -11,7 +11,7 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn deserialize(json_string: &str) -> Result<Snapshot, BazofError>{
+    pub fn deserialize(json_string: &str) -> Result<Snapshot, BazofError> {
         Ok(serde_json::from_str::<Snapshot>(json_string)?)
     }
 
@@ -28,7 +28,11 @@ struct Segment {
     id: String,
     #[serde(with = "timestamp_format")]
     start: DateTime<Utc>,
-    #[serde(with = "optional_timestamp_format", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "optional_timestamp_format",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     end: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     file: Option<String>,
@@ -38,20 +42,21 @@ struct Segment {
     delta: Option<Vec<Delta>>,
 }
 
-impl Segment{
+impl Segment {
     pub fn get_data_files(&self, as_of: AsOf) -> Vec<String> {
         let mut files = Vec::new();
 
         if let Some(subsegments) = &self.segments {
             for subsegment in subsegments {
-                if subsegment.is_in_range(as_of){
+                if subsegment.is_in_range(as_of) {
                     files.extend(subsegment.get_data_files(as_of));
                 }
             }
         }
 
         if let Some(delta) = &self.delta {
-            let mut sorted_deltas: Vec<&Delta> = delta.iter().filter(|d|d.is_before(as_of)).collect();
+            let mut sorted_deltas: Vec<&Delta> =
+                delta.iter().filter(|d| d.is_before(as_of)).collect();
             sorted_deltas.sort_by(|a, b| b.start.cmp(&a.start));
             files.extend(sorted_deltas.into_iter().map(|delta| delta.file.clone()));
         }
@@ -88,13 +93,11 @@ struct Delta {
     end: DateTime<Utc>,
 }
 
-impl Delta{
+impl Delta {
     pub fn is_before(&self, as_of: AsOf) -> bool {
         match as_of {
             Current => true,
-            EventTime(as_of_time) => {
-                self.start < as_of_time
-            }
+            EventTime(as_of_time) => self.start < as_of_time,
         }
     }
 }
@@ -148,11 +151,9 @@ mod optional_timestamp_format {
     {
         let s: Option<String> = Option::deserialize(deserializer)?;
         match s {
-            Some(date_str) => {
-                DateTime::parse_from_rfc3339(&date_str)
-                    .map(|dt| Some(dt.with_timezone(&Utc)))
-                    .map_err(serde::de::Error::custom)
-            }
+            Some(date_str) => DateTime::parse_from_rfc3339(&date_str)
+                .map(|dt| Some(dt.with_timezone(&Utc)))
+                .map_err(serde::de::Error::custom),
             None => Ok(None),
         }
     }
@@ -166,7 +167,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_deserialization() {
-        let json_str =r#"{
+        let json_str = r#"{
   "segments": [
     {
       "id": "10",
@@ -246,14 +247,20 @@ mod tests {
         let segment_11 = &snapshot.segments[0].segments.as_ref().unwrap()[0];
         assert_eq!(segment_11.id, "11".to_string());
 
-        assert_eq!(segment_11.start, start_of_month(2024,1));
+        assert_eq!(segment_11.start, start_of_month(2024, 1));
         assert_eq!(segment_11.file, None);
-        assert_eq!(segment_11.end, Some(start_of_month(2024,7).add(TimeDelta::milliseconds(-1))));
+        assert_eq!(
+            segment_11.end,
+            Some(start_of_month(2024, 7).add(TimeDelta::milliseconds(-1)))
+        );
 
         let deltas = segment_11.delta.as_ref().unwrap();
         assert_eq!(deltas.len(), 2);
         assert_eq!(deltas[0].file, "delta_111.parquet");
-        assert_eq!(deltas[1].end, start_of_month(2024,7).add(TimeDelta::milliseconds(-1)));
+        assert_eq!(
+            deltas[1].end,
+            start_of_month(2024, 7).add(TimeDelta::milliseconds(-1))
+        );
 
         assert_eq!(snapshot.segments[1].end, None);
     }
@@ -261,51 +268,58 @@ mod tests {
     #[test]
     fn test_serialization() {
         let snapshot = Snapshot {
-            segments: vec![
-                Segment {
-                    id: "10".to_string(),
+            segments: vec![Segment {
+                id: "10".to_string(),
+                start: start_of_month(2025, 1),
+                end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
+                file: Some("base.parquet".to_string()),
+                segments: Some(vec![Segment {
+                    id: "11".to_string(),
                     start: start_of_month(2025, 1),
                     end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
                     file: Some("base.parquet".to_string()),
-                    segments: Some(vec![
-                        Segment {
-                            id: "11".to_string(),
-                            start: start_of_month(2025, 1),
-                            end: Some(start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))),
-                            file: Some("base.parquet".to_string()),
-                            segments: None,
-                            delta: Some (
-                                vec![Delta{
-                                    start: start_of_month(2025, 1),
-                                    end: start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)),
-                                    file: "delta_111.parquet".to_string(),
-                                }
-                                ])
-                        }
-                    ]),
-                    delta: None,
-                }
-            ],
+                    segments: None,
+                    delta: Some(vec![Delta {
+                        start: start_of_month(2025, 1),
+                        end: start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)),
+                        file: "delta_111.parquet".to_string(),
+                    }]),
+                }]),
+                delta: None,
+            }],
         };
 
         let json_str = serde_json::to_string(&snapshot).unwrap();
         let deserialized_snapshot: Snapshot = serde_json::from_str(&json_str).unwrap();
         assert_eq!(deserialized_snapshot.segments.len(), 1);
-        assert_eq!(deserialized_snapshot.segments[0].segments.as_ref().unwrap().len(), 1);
+        assert_eq!(
+            deserialized_snapshot.segments[0]
+                .segments
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
         let nested_segment = &deserialized_snapshot.segments[0].segments.as_ref().unwrap()[0];
 
         assert_eq!(nested_segment.id, "11".to_string());
         assert_eq!(nested_segment.file.as_ref().unwrap(), "base.parquet");
-        assert_eq!(nested_segment.end.unwrap(), start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
+        assert_eq!(
+            nested_segment.end.unwrap(),
+            start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))
+        );
 
         let delta = &nested_segment.delta.as_ref().unwrap()[0];
         assert_eq!(delta.start, start_of_month(2025, 1));
-        assert_eq!(delta.end, start_of_month(2025, 2).add(TimeDelta::milliseconds(-1)));
+        assert_eq!(
+            delta.end,
+            start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))
+        );
         assert_eq!(delta.file, "delta_111.parquet".to_string());
     }
 
     #[test]
-    fn reads_base_file_of_current_segment(){
+    fn reads_base_file_of_current_segment() {
         let json_str = r#"{
   "segments": [
     {
@@ -327,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_base_file_of_historical_segment(){
+    fn reads_base_file_of_historical_segment() {
         let json_str = r#"{
   "segments": [
     {
@@ -360,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_base_file_of_nested_segments_in_historical_segments(){
+    fn reads_base_file_of_nested_segments_in_historical_segments() {
         let json_str = r#"{
   "segments": [
     {
@@ -402,31 +416,30 @@ mod tests {
         let snapshot = Snapshot::deserialize(json_str).unwrap();
         let mut files = snapshot.get_data_files(EventTime(start_of_month(2018, 4)));
 
-        assert_eq!(files, vec![
-            "base121.parquet".to_string(),
-            "base12.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "base121.parquet".to_string(),
+                "base12.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
 
         files = snapshot.get_data_files(EventTime(start_of_month(2022, 4)));
-        assert_eq!(files.len(),0);
+        assert_eq!(files.len(), 0);
 
         files = snapshot.get_data_files(EventTime(start_of_month(2011, 4)));
-        assert_eq!(files, vec![
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(files, vec!["base10.parquet".to_string(),]);
 
         files = snapshot.get_data_files(EventTime(start_of_month(2017, 4)));
-        assert_eq!(files, vec![
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(files, vec!["base10.parquet".to_string(),]);
 
         files = snapshot.get_data_files(Current);
-        assert_eq!(files.len(),0);
+        assert_eq!(files.len(), 0);
     }
 
     #[test]
-    fn reads_base_file_of_nested_segments_in_current_segments(){
+    fn reads_base_file_of_nested_segments_in_current_segments() {
         let json_str = r#"{
   "segments": [
     {
@@ -465,39 +478,44 @@ mod tests {
         let snapshot = Snapshot::deserialize(json_str).unwrap();
         let mut files = snapshot.get_data_files(EventTime(start_of_month(2018, 4)));
 
-        assert_eq!(files, vec![
-            "base121.parquet".to_string(),
-            "base12.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "base121.parquet".to_string(),
+                "base12.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
 
         files = snapshot.get_data_files(EventTime(start_of_month(2022, 4)));
-        assert_eq!(files, vec![
-            "base122.parquet".to_string(),
-            "base12.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "base122.parquet".to_string(),
+                "base12.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
 
         files = snapshot.get_data_files(EventTime(start_of_month(2011, 4)));
-        assert_eq!(files, vec![
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(files, vec!["base10.parquet".to_string(),]);
 
         files = snapshot.get_data_files(EventTime(start_of_month(2017, 4)));
-        assert_eq!(files, vec![
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(files, vec!["base10.parquet".to_string(),]);
 
         files = snapshot.get_data_files(Current);
-        assert_eq!(files, vec![
-            "base122.parquet".to_string(),
-            "base12.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "base122.parquet".to_string(),
+                "base12.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
     }
 
     #[test]
-    fn reads_delta_files_of_current_segment(){
+    fn reads_delta_files_of_current_segment() {
         let json_str = r#"{
   "segments": [
     {
@@ -534,23 +552,29 @@ mod tests {
         let snapshot = Snapshot::deserialize(json_str).unwrap();
 
         let files = snapshot.get_data_files(Current);
-        assert_eq!(files, vec![
-            "base211.parquet".to_string(),
-            "delta_101.parquet".to_string(),
-            "delta_102.parquet".to_string(),
-            "delta_100.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "base211.parquet".to_string(),
+                "delta_101.parquet".to_string(),
+                "delta_102.parquet".to_string(),
+                "delta_100.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
 
         let files = snapshot.get_data_files(EventTime(start_of_month(2024, 8)));
-        assert_eq!(files, vec![
-            "delta_102.parquet".to_string(),
-            "delta_100.parquet".to_string(),
-            "base10.parquet".to_string(),
-        ]);
+        assert_eq!(
+            files,
+            vec![
+                "delta_102.parquet".to_string(),
+                "delta_100.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
     }
 
-    fn start_of_month(year:i32, month:u32) -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(year, month, 1,0, 0, 0).unwrap()
+    fn start_of_month(year: i32, month: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(year, month, 1, 0, 0, 0).unwrap()
     }
 }
