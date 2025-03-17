@@ -1,5 +1,10 @@
 # Bazof
 
+[![Rust CI](https://github.com/MaciekLesiczka/bazof/actions/workflows/rust.yml/badge.svg)](https://github.com/MaciekLesiczka/bazof/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/bazof.svg)](https://crates.io/crates/bazof)
+[![Documentation](https://docs.rs/bazof/badge.svg)](https://docs.rs/bazof)
+[![License](https://img.shields.io/crates/l/bazof.svg)](LICENSE)
+
 Query tables in object storage as of event time.
 
 Bazof is a lakehouse format with time-travel capabilities.
