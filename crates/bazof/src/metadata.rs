@@ -97,7 +97,7 @@ impl Delta {
     pub fn is_before(&self, as_of: AsOf) -> bool {
         match as_of {
             Current => true,
-            EventTime(as_of_time) => self.start < as_of_time,
+            EventTime(as_of_time) => self.start <= as_of_time,
         }
     }
 }
@@ -526,11 +526,11 @@ mod tests {
         {
           "file": "delta_100.parquet",
           "start": "2024-02-01T00:00:00.000Z",
-          "end": "2024-05-31T23:59:59.999Z"
+          "end": "2024-06-01T00:00:00.0Z"
         },
         {
           "file": "delta_101.parquet",
-          "start": "2024-09-01T00:00:00.000Z",
+          "start": "2024-10-01T00:00:00.000Z",
           "end": "2024-11-30T23:59:59.999Z"
         },
         {
@@ -568,6 +568,24 @@ mod tests {
             files,
             vec![
                 "delta_102.parquet".to_string(),
+                "delta_100.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
+
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 7)));
+        assert_eq!(
+            files,
+            vec![
+                "delta_102.parquet".to_string(),
+                "delta_100.parquet".to_string(),
+                "base10.parquet".to_string(),
+            ]
+        );
+        let files = snapshot.get_data_files(EventTime(start_of_month(2024, 6)));
+        assert_eq!(
+            files,
+            vec![
                 "delta_100.parquet".to_string(),
                 "base10.parquet".to_string(),
             ]

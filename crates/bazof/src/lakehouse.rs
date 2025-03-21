@@ -89,7 +89,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[tokio::test]
-    async fn scan_table() -> Result<(), Box<dyn std::error::Error>> {
+    async fn scan_table_with_one_segment_and_delta() -> Result<(), Box<dyn std::error::Error>> {
         let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         workspace_dir.pop();
         workspace_dir.pop();
@@ -120,6 +120,51 @@ mod tests {
             (1.to_string(), "abc2".to_string()),
             (2.to_string(), "xyz".to_string()),
         ]);
+
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scan_table_with_delta_multiple_updates() -> Result<(), Box<dyn std::error::Error>> {
+        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        workspace_dir.pop();
+        workspace_dir.pop();
+
+        let test_data_path = workspace_dir.join("test-data");
+        let curr_dir = Path::from(test_data_path.to_str().unwrap());
+
+        let local_store = Arc::new(LocalFileSystem::new());
+        let lakehouse = Lakehouse::new(curr_dir, local_store);
+
+        let result = lakehouse.scan("table1", Current).await?;
+        let result = bazof_batch_to_hash_map(&result);
+
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc4".to_string()),
+            (2.to_string(), "xyz3".to_string()),
+        ]);
+
+        assert_eq!(result, expected);
+
+        let past = Utc.with_ymd_and_hms(2024, 6, 1, 0, 0, 0).unwrap();
+        let result = lakehouse.scan("table1", EventTime(past)).await?;
+        let result = bazof_batch_to_hash_map(&result);
+
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc3".to_string()),
+            (2.to_string(), "xyz2".to_string()),
+        ]);
+
+        assert_eq!(result, expected);
+
+        let past = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap();
+        let result = lakehouse.scan("table1", EventTime(past)).await?;
+        let result = bazof_batch_to_hash_map(&result);
+
+        let expected: HashMap<String, String> =
+            HashMap::from([(1.to_string(), "abc2".to_string())]);
 
         assert_eq!(result, expected);
 
