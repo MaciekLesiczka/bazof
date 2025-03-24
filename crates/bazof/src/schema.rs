@@ -28,13 +28,11 @@ pub struct TableSchema {
 }
 
 impl TableSchema {
-    pub fn to_arrow_schema(&self) -> Result<SchemaRef, BazofError> {
+    pub fn to_arrow_schema(&self) -> Result<Schema, BazofError> {
         let mut fields = Vec::new();
 
-        // Add implicit key field
         fields.push(Field::new("key", DataType::Utf8, false));
 
-        // Add user-defined columns
         for col in &self.columns {
             let arrow_type = match col.data_type {
                 ColumnType::Int => DataType::Int64,
@@ -49,14 +47,13 @@ impl TableSchema {
             fields.push(Field::new(&col.name, arrow_type, col.nullable));
         }
 
-        // Add implicit event_time field
         fields.push(Field::new(
             "event_time",
             DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
             false,
         ));
 
-        Ok(Arc::new(Schema::new(fields)))
+        Ok(Schema::new(fields))
     }
 }
 
@@ -122,5 +119,39 @@ mod tests {
         assert_eq!(table_schema.columns[1].name, "bar".to_string());
         assert_eq!(table_schema.columns[1].data_type, ColumnType::String);
         assert_eq!(table_schema.columns[1].nullable, false);
+    }
+
+    #[test]
+    fn test_to_arrow_schema() {
+        let json_str = r#"{
+            "columns":[{
+                "name":"foo",
+                "data_type":"Int",
+                "nullable":true
+            },
+            {
+                "name":"bar",
+                "data_type":"String",
+                "nullable":false
+            }]
+        }
+  "#;
+        let table_schema: TableSchema = serde_json::from_str(json_str).unwrap();
+
+        let arrow_schema = table_schema.to_arrow_schema().unwrap();
+
+        assert_eq!(
+            arrow_schema,
+            Schema::new(vec![
+                Field::new("key", DataType::Utf8, false),
+                Field::new("foo", DataType::Int64, true),
+                Field::new("bar", DataType::Utf8, false),
+                Field::new(
+                    "event_time",
+                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+                    false,
+                ),
+            ])
+        );
     }
 }
