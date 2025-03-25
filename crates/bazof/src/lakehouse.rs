@@ -29,7 +29,9 @@ impl Lakehouse {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let files = table.get_current_data_files(as_of).await?;
 
-        let mut seen: HashMap<String, (String, i64)> = HashMap::new();
+        let mut seen: HashMap<String, i64> = HashMap::new();
+
+        let (mut keys, mut values, mut timestamps) = array_builders();
 
         for file in files {
             let full_path = table.path.child(file);
@@ -46,9 +48,11 @@ impl Lakehouse {
                     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
-                        let key_val = key_arr.value(row_idx).to_owned();
+                        let key_val = key_arr.value(row_idx);
 
-                        if let std::collections::hash_map::Entry::Vacant(e) = seen.entry(key_val) {
+                        if let std::collections::hash_map::Entry::Vacant(e) =
+                            seen.entry(key_val.to_owned())
+                        {
                             let ts_val = ts_arr.value(row_idx);
 
                             let ts = DateTime::from_timestamp_millis(ts_val)
@@ -58,20 +62,17 @@ impl Lakehouse {
                                     continue;
                                 }
                             }
+
+                            e.insert(ts_val);
+
                             let val_val = val_arr.value(row_idx).to_owned();
-                            e.insert((val_val, ts_val));
+                            keys.append_value(key_val.to_owned());
+                            values.append_value(val_val);
+                            timestamps.append_value(ts_val);
                         }
                     }
                 }
             }
-        }
-
-        let (mut keys, mut values, mut timestamps) = array_builders();
-
-        for (key, (value, ts)) in seen {
-            keys.append_value(key);
-            values.append_value(value);
-            timestamps.append_value(ts);
         }
 
         Ok(to_batch(keys, values, timestamps)?)
