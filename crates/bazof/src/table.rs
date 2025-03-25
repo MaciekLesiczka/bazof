@@ -68,6 +68,15 @@ mod tests {
             "s1.json",
             String::from(
                 r#"{
+        "schema": {
+          "columns": [
+            {
+              "name": "value",
+              "data_type": "String",
+              "nullable": false
+            }
+          ]
+        },
         "segments": [
             {
                 "id": "10",
@@ -85,6 +94,15 @@ mod tests {
             "s2.json",
             String::from(
                 r#"{
+        "schema": {
+          "columns": [
+            {
+              "name": "value",
+              "data_type": "String",
+              "nullable": false
+            }
+          ]
+        },
         "segments": [
             {
                 "id": "10",

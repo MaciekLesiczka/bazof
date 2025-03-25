@@ -1,5 +1,5 @@
 use crate::BazofError;
-use arrow::datatypes::{DataType, Field, Schema, SchemaRef, TimeUnit};
+use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::error::ArrowError;
 use arrow_array::builder::{StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::RecordBatch;
@@ -28,7 +28,7 @@ pub struct TableSchema {
 }
 
 impl TableSchema {
-    pub fn to_arrow_schema(&self) -> Result<Schema, BazofError> {
+    fn _to_arrow_schema(&self) -> Result<Schema, BazofError> {
         let mut fields = Vec::new();
 
         fields.push(Field::new("key", DataType::Utf8, false));
@@ -97,14 +97,14 @@ mod tests {
     fn test_deserialization() {
         let json_str = r#"{
             "columns":[{
-                "name":"foo",
-                "data_type":"Int",
-                "nullable":true
+                "name": "foo",
+                "data_type": "Int",
+                "nullable": true
             },
             {
-                "name":"bar",
-                "data_type":"String",
-                "nullable":false
+                "name": "bar",
+                "data_type": "String",
+                "nullable": false
             }]
         }
   "#;
@@ -138,7 +138,7 @@ mod tests {
   "#;
         let table_schema: TableSchema = serde_json::from_str(json_str).unwrap();
 
-        let arrow_schema = table_schema.to_arrow_schema().unwrap();
+        let arrow_schema = table_schema._to_arrow_schema().unwrap();
 
         assert_eq!(
             arrow_schema,

@@ -1,4 +1,13 @@
 {
+  "schema": {
+    "columns": [
+      {
+        "name": "value",
+        "data_type": "String",
+        "nullable": false
+      }
+    ]
+  },
   "segments": [
     {
       "id": "10",
