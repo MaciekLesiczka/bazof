@@ -27,7 +27,8 @@ impl Lakehouse {
 
     pub async fn scan(&self, table_name: &str, as_of: AsOf) -> Result<RecordBatch, BazofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
-        let files = table.get_current_data_files(as_of).await?;
+        let snapshot = table.get_current_snapshot().await?;
+        let files = snapshot.get_data_files(as_of);
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
