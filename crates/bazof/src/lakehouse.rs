@@ -1,19 +1,17 @@
 use crate::as_of::AsOf;
+use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
 use crate::table::Table;
-use arrow_array::RecordBatch;
-use object_store::path::Path;
-use object_store::ObjectStore;
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use crate::as_of::AsOf::EventTime;
-use crate::schema::{array_builders, to_batch};
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
+use arrow_array::RecordBatch;
 use chrono::DateTime;
+use object_store::path::Path;
+use object_store::ObjectStore;
 use parquet::arrow::async_reader::ParquetObjectReader;
 use parquet::arrow::ParquetRecordBatchStreamBuilder;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct Lakehouse {
     path: Path,
@@ -29,10 +27,11 @@ impl Lakehouse {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let snapshot = table.get_current_snapshot().await?;
         let files = snapshot.get_data_files(as_of);
+        let schema = snapshot.schema;
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut values, mut timestamps) = array_builders();
+        let (mut keys, mut values, mut timestamps) = schema.array_builders();
 
         for file in files {
             let full_path = table.path.child(file);
@@ -45,7 +44,13 @@ impl Lakehouse {
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_string::<i32>();
-                    let val_arr = batch.column(1).as_string::<i32>();
+
+                    let mut column_arrays = vec![];
+                    for col_idx in 1..schema.columns.len() + 1 {
+                        let column_array = batch.column(col_idx).as_string::<i32>();
+                        column_arrays.push(column_array);
+                    }
+
                     let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
@@ -66,9 +71,13 @@ impl Lakehouse {
 
                             e.insert(ts_val);
 
-                            let val_val = val_arr.value(row_idx).to_owned();
+                            for i in 0..schema.columns.len() {
+                                let val_arr = column_arrays[i];
+                                let val_val = val_arr.value(row_idx);
+                                values[i].append_value(val_val.to_owned());
+                            }
                             keys.append_value(key_val.to_owned());
-                            values.append_value(val_val);
+
                             timestamps.append_value(ts_val);
                         }
                     }
@@ -76,7 +85,11 @@ impl Lakehouse {
             }
         }
 
-        Ok(to_batch(keys, values, timestamps)?)
+        let mut value_arrays = vec![];
+        for i in 0..values.len() {
+            value_arrays.push(values[i].finish());
+        }
+        Ok(schema.to_batch(keys, timestamps, value_arrays)?)
     }
 }
 

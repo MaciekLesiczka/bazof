@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Snapshot {
     segments: Vec<Segment>,
-    schema: TableSchema,
+    pub schema: TableSchema,
 }
 
 impl Snapshot {

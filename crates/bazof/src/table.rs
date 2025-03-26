@@ -1,4 +1,3 @@
-use crate::as_of::AsOf;
 use crate::errors::BazofError;
 use crate::metadata::Snapshot;
 use object_store::{path::Path, ObjectStore};
