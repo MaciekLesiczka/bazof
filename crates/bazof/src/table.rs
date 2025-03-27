@@ -15,12 +15,12 @@ impl Table {
 
     pub async fn get_current_snapshot(&self) -> Result<Snapshot, BazofError> {
         let snapshot_id = self.read_version().await?;
-        Ok(self.get_snapshot(&snapshot_id).await?)
+        self.get_snapshot(&snapshot_id).await
     }
 
     pub async fn get_snapshot(&self, snapshot_id: &str) -> Result<Snapshot, BazofError> {
         let snapshot_file = format!("s{}.json", snapshot_id);
-        Ok(self.read_snapshot(&snapshot_file).await?)
+        self.read_snapshot(&snapshot_file).await
     }
 
     async fn read_snapshot(&self, file_name: &str) -> Result<Snapshot, BazofError> {

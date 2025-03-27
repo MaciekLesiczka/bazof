@@ -76,9 +76,9 @@ impl Lakehouse {
                             for i in 0..schema.columns.len() {
                                 let val_arr = column_arrays[i];
                                 let val_val = val_arr.value(row_idx);
-                                values[i].append_value(val_val.to_owned());
+                                values[i].append_value(val_val);
                             }
-                            keys.append_value(key_val.to_owned());
+                            keys.append_value(key_val);
 
                             timestamps.append_value(ts_val);
                         }
@@ -88,10 +88,10 @@ impl Lakehouse {
         }
 
         let mut value_arrays = vec![];
-        for i in 0..values.len() {
-            value_arrays.push(values[i].finish());
+        for builder in &mut values {
+            value_arrays.push(builder.finish());
         }
-        Ok(schema.to_batch(keys, timestamps, value_arrays)?)
+        schema.to_batch(keys, timestamps, value_arrays)
     }
 }
 
