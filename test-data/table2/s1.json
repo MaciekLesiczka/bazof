@@ -1,0 +1,28 @@
+{
+  "schema": {
+    "columns": [
+      {
+        "name": "value1",
+        "data_type": "String",
+        "nullable": false
+      },
+      {
+        "name": "value2",
+        "data_type": "String",
+        "nullable": false
+      }
+    ]
+  },
+  "segments": [
+    {
+      "id": "10",
+      "start": "2024-01-01T00:00:00.000Z",
+      "file": "base.parquet",
+      "delta": [{
+        "start": "2024-02-01T00:00:00.000Z",
+        "end": "2024-04-01T00:00:00.000Z",
+        "file": "delta1.parquet"
+      }]
+    }
+  ]
+}

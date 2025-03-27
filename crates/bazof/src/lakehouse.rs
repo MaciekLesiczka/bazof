@@ -51,7 +51,9 @@ impl Lakehouse {
                         column_arrays.push(column_array);
                     }
 
-                    let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
+                    let ts_arr = batch
+                        .column(batch.num_columns() - 1)
+                        .as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
                         let key_val = key_arr.value(row_idx);
@@ -186,6 +188,45 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn scan_table_with_one_segment_and_delta_with_multiple_columns(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        workspace_dir.pop();
+        workspace_dir.pop();
+
+        let test_data_path = workspace_dir.join("test-data");
+        let curr_dir = Path::from(test_data_path.to_str().unwrap());
+
+        let local_store = Arc::new(LocalFileSystem::new());
+        let lakehouse = Lakehouse::new(curr_dir, local_store);
+
+        let result = lakehouse.scan("table2", Current).await?;
+        let result = bazof_batch_to_hash_map_2columns(&result);
+
+        let expected: HashMap<String, (String, String)> = HashMap::from([
+            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
+            (2.to_string(), ("xyz2".to_string(), "II_xyz".to_string())),
+            (3.to_string(), ("www2".to_string(), "II_www2".to_string())),
+        ]);
+
+        assert_eq!(result, expected);
+
+        let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
+        let result = lakehouse.scan("table2", EventTime(past)).await?;
+
+        let result = bazof_batch_to_hash_map_2columns(&result);
+
+        let expected: HashMap<String, (String, String)> = HashMap::from([
+            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
+            (2.to_string(), ("xyz".to_string(), "II_xyz".to_string())),
+        ]);
+
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
     fn bazof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
@@ -194,6 +235,23 @@ mod tests {
             result_map.insert(
                 key_array.value(i).to_owned(),
                 value_array.value(i).to_owned(),
+            );
+        }
+        result_map
+    }
+
+    fn bazof_batch_to_hash_map_2columns(batch: &RecordBatch) -> HashMap<String, (String, String)> {
+        let key_array = batch.column(0).as_string::<i32>();
+        let value_array = batch.column(1).as_string::<i32>();
+        let value2_array = batch.column(2).as_string::<i32>();
+        let mut result_map: HashMap<String, (String, String)> = HashMap::new();
+        for i in 0..key_array.len() {
+            result_map.insert(
+                key_array.value(i).to_owned(),
+                (
+                    value_array.value(i).to_owned(),
+                    value2_array.value(i).to_owned(),
+                ),
             );
         }
         result_map
