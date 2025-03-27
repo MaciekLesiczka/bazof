@@ -101,7 +101,8 @@ Bazof is under development. The goal is to implement a data lakehouse with the f
 
 ### Milestone 1
 
- - [ ] Multiple columns support
+ - [x] Multiple columns support
+ - [ ] Data Types columns support
  - [ ] Single row, key-value writer
  - [ ] Document spec
  - [ ] Delta -> snapshot compaction

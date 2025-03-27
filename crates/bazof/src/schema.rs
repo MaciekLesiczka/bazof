@@ -9,11 +9,7 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ColumnType {
-    Int,
-    Float,
     String,
-    Boolean,
-    Timestamp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -36,13 +32,7 @@ impl TableSchema {
 
         for col in &self.columns {
             let arrow_type = match col.data_type {
-                ColumnType::Int => DataType::Int64,
-                ColumnType::Float => DataType::Float64,
                 ColumnType::String => DataType::Utf8,
-                ColumnType::Boolean => DataType::Boolean,
-                ColumnType::Timestamp => {
-                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
-                }
             };
 
             fields.push(Field::new(&col.name, arrow_type, col.nullable));
@@ -137,7 +127,7 @@ mod tests {
         let json_str = r#"{
             "columns":[{
                 "name": "foo",
-                "data_type": "Int",
+                "data_type": "String",
                 "nullable": true
             },
             {
@@ -152,7 +142,7 @@ mod tests {
         assert_eq!(table_schema.columns.len(), 2);
 
         assert_eq!(table_schema.columns[0].name, "foo".to_string());
-        assert_eq!(table_schema.columns[0].data_type, ColumnType::Int);
+        assert_eq!(table_schema.columns[0].data_type, ColumnType::String);
         assert_eq!(table_schema.columns[0].nullable, true);
 
         assert_eq!(table_schema.columns[1].name, "bar".to_string());
@@ -165,7 +155,7 @@ mod tests {
         let json_str = r#"{
             "columns":[{
                 "name":"foo",
-                "data_type":"Int",
+                "data_type":"String",
                 "nullable":true
             },
             {
@@ -183,7 +173,7 @@ mod tests {
             arrow_schema,
             Schema::new(vec![
                 Field::new("key", DataType::Utf8, false),
-                Field::new("foo", DataType::Int64, true),
+                Field::new("foo", DataType::Utf8, true),
                 Field::new("bar", DataType::Utf8, false),
                 Field::new(
                     "event_time",
