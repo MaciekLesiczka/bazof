@@ -335,7 +335,7 @@ mod tests {
             deserialized_snapshot.schema.columns[0].data_type,
             ColumnType::String
         );
-        assert!(deserialized_snapshot.schema.columns[0].nullable);
+        assert!(!deserialized_snapshot.schema.columns[0].nullable);
     }
 
     #[test]

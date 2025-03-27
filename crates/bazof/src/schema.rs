@@ -147,7 +147,7 @@ mod tests {
 
         assert_eq!(table_schema.columns[1].name, "bar".to_string());
         assert_eq!(table_schema.columns[1].data_type, ColumnType::String);
-        assert!(table_schema.columns[1].nullable);
+        assert!(!table_schema.columns[1].nullable);
     }
 
     #[test]
