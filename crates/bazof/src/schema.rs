@@ -143,11 +143,11 @@ mod tests {
 
         assert_eq!(table_schema.columns[0].name, "foo".to_string());
         assert_eq!(table_schema.columns[0].data_type, ColumnType::String);
-        assert_eq!(table_schema.columns[0].nullable, true);
+        assert!(table_schema.columns[0].nullable);
 
         assert_eq!(table_schema.columns[1].name, "bar".to_string());
         assert_eq!(table_schema.columns[1].data_type, ColumnType::String);
-        assert_eq!(table_schema.columns[1].nullable, false);
+        assert!(table_schema.columns[1].nullable);
     }
 
     #[test]
