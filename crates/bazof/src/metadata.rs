@@ -2,12 +2,14 @@ use crate::as_of::AsOf;
 use crate::as_of::AsOf::Current;
 use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
+use crate::schema::TableSchema;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Snapshot {
     segments: Vec<Segment>,
+    pub schema: TableSchema,
 }
 
 impl Snapshot {
@@ -161,13 +163,14 @@ mod optional_timestamp_format {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::schema::{ColumnDef, ColumnType};
     use chrono::{TimeDelta, TimeZone};
     use std::ops::Add;
-
-    use super::*;
     #[test]
     fn test_deserialization() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",
@@ -287,6 +290,13 @@ mod tests {
                 }]),
                 delta: None,
             }],
+            schema: TableSchema {
+                columns: vec![ColumnDef {
+                    name: "value".to_string(),
+                    data_type: ColumnType::String,
+                    nullable: false,
+                }],
+            },
         };
 
         let json_str = serde_json::to_string(&snapshot).unwrap();
@@ -316,11 +326,22 @@ mod tests {
             start_of_month(2025, 2).add(TimeDelta::milliseconds(-1))
         );
         assert_eq!(delta.file, "delta_111.parquet".to_string());
+
+        assert_eq!(
+            deserialized_snapshot.schema.columns[0].name,
+            "value".to_string()
+        );
+        assert_eq!(
+            deserialized_snapshot.schema.columns[0].data_type,
+            ColumnType::String
+        );
+        assert!(!deserialized_snapshot.schema.columns[0].nullable);
     }
 
     #[test]
     fn reads_base_file_of_current_segment() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",
@@ -343,6 +364,7 @@ mod tests {
     #[test]
     fn reads_base_file_of_historical_segment() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",
@@ -376,6 +398,7 @@ mod tests {
     #[test]
     fn reads_base_file_of_nested_segments_in_historical_segments() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",
@@ -441,6 +464,7 @@ mod tests {
     #[test]
     fn reads_base_file_of_nested_segments_in_current_segments() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",
@@ -517,6 +541,7 @@ mod tests {
     #[test]
     fn reads_delta_files_of_current_segment() {
         let json_str = r#"{
+  "schema": {"columns":[]},
   "segments": [
     {
       "id": "10",

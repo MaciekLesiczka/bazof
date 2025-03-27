@@ -2,7 +2,12 @@
   "schema": {
     "columns": [
       {
-        "name": "value",
+        "name": "value1",
+        "data_type": "String",
+        "nullable": false
+      },
+      {
+        "name": "value2",
         "data_type": "String",
         "nullable": false
       }

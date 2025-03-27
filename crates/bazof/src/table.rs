@@ -1,4 +1,3 @@
-use crate::as_of::AsOf;
 use crate::errors::BazofError;
 use crate::metadata::Snapshot;
 use object_store::{path::Path, ObjectStore};
@@ -14,20 +13,14 @@ impl Table {
         Table { path, store }
     }
 
-    pub async fn get_current_data_files(&self, as_of: AsOf) -> Result<Vec<String>, BazofError> {
-        let version = self.read_version().await?;
-        self.get_data_files(&version, as_of).await
+    pub async fn get_current_snapshot(&self) -> Result<Snapshot, BazofError> {
+        let snapshot_id = self.read_version().await?;
+        self.get_snapshot(&snapshot_id).await
     }
 
-    async fn get_data_files(
-        &self,
-        snapshot_id: &str,
-        as_of: AsOf,
-    ) -> Result<Vec<String>, BazofError> {
+    pub async fn get_snapshot(&self, snapshot_id: &str) -> Result<Snapshot, BazofError> {
         let snapshot_file = format!("s{}.json", snapshot_id);
-        let snapshot = self.read_snapshot(snapshot_file.as_str()).await?;
-        let files = snapshot.get_data_files(as_of);
-        Ok(files)
+        self.read_snapshot(&snapshot_file).await
     }
 
     async fn read_snapshot(&self, file_name: &str) -> Result<Snapshot, BazofError> {
@@ -68,6 +61,15 @@ mod tests {
             "s1.json",
             String::from(
                 r#"{
+        "schema": {
+          "columns": [
+            {
+              "name": "value",
+              "data_type": "String",
+              "nullable": false
+            }
+          ]
+        },
         "segments": [
             {
                 "id": "10",
@@ -85,6 +87,15 @@ mod tests {
             "s2.json",
             String::from(
                 r#"{
+        "schema": {
+          "columns": [
+            {
+              "name": "value",
+              "data_type": "String",
+              "nullable": false
+            }
+          ]
+        },
         "segments": [
             {
                 "id": "10",
@@ -99,17 +110,33 @@ mod tests {
 
         put_table_metadata(&store, "version.txt", String::from("1")).await;
 
-        let files = table.get_data_files("1", Current).await?;
+        let files = table
+            .get_snapshot("1")
+            .await
+            .unwrap()
+            .get_data_files(Current);
         assert_eq!(files, vec!["base10.parquet".to_string()]);
 
         let past = Utc.with_ymd_and_hms(2020, 1, 17, 0, 0, 0).unwrap();
-        let files = table.get_data_files("1", EventTime(past)).await?;
+        let files = table
+            .get_snapshot("1")
+            .await
+            .unwrap()
+            .get_data_files(EventTime(past));
         assert_eq!(files.len(), 0);
 
-        let files = table.get_data_files("2", Current).await?;
+        let files = table
+            .get_snapshot("2")
+            .await
+            .unwrap()
+            .get_data_files(Current);
         assert_eq!(files, vec!["base101.parquet".to_string()]);
 
-        let files = table.get_current_data_files(Current).await?;
+        let files = table
+            .get_current_snapshot()
+            .await
+            .unwrap()
+            .get_data_files(Current);
         assert_eq!(files, vec!["base10.parquet".to_string()]);
 
         Ok(())
