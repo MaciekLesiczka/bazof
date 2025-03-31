@@ -1,6 +1,7 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
+use crate::schema::TableSchema;
 use crate::table::Table;
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
@@ -92,6 +93,11 @@ impl Lakehouse {
             value_arrays.push(builder.finish());
         }
         schema.to_batch(keys, timestamps, value_arrays)
+    }
+
+    pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, BazofError> {
+        let table = Table::new(self.path.child(table_name), self.store.clone());
+        Ok(table.get_current_snapshot().await?.schema)
     }
 }
 

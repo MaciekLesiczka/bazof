@@ -8,5 +8,5 @@ mod table;
 pub use as_of::AsOf;
 pub use errors::BazofError;
 pub use lakehouse::Lakehouse;
-pub use schema::{array_builders, to_batch};
+pub use schema::{array_builders, to_batch, TableSchema};
 pub use table::Table;

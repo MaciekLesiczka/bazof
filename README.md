@@ -35,6 +35,9 @@ cargo run -p bazof-cli -- scan --path ./test-data --table table0
 
 # Scan a table as of a specific event time
 cargo run -p bazof-cli -- scan --path ./test-data --table table0 --as-of "2024-03-15T14:30:00"
+
+# Generate test parquet file from CSV
+cargo run -p bazof-cli -- gen --path ./test-data --table table2 --file base
 ```
 
 ## DataFusion Integration

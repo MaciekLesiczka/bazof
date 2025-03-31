@@ -3,29 +3,36 @@ use arrow_array::builder::ArrayBuilder;
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
 use arrow_array::RecordBatch;
-use bazof::BazofError;
-use bazof::{array_builders, to_batch};
+use bazof::TableSchema;
+use bazof::{array_builders, to_batch, BazofError};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
 
-pub fn csv_to_arrow(csv: String) -> Result<RecordBatch, BazofError> {
-    let (mut keys, mut values, mut timestamps) = array_builders();
+pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, BazofError> {
+    let (mut keys, mut values, mut timestamps) = schema.array_builders();
 
     for line in csv.split('\n') {
         let parts: Vec<&str> = line.split(',').collect();
 
         keys.append_value(parts[0]);
-        values.append_value(parts[1]);
 
-        let ts = DateTime::parse_from_rfc3339(parts[2])
+        for i in 0..schema.columns.len() {
+            values[i].append_value(parts[i + 1]);
+        }
+
+        let ts = DateTime::parse_from_rfc3339(parts[schema.columns.len() + 1])
             .map(|dt| dt.with_timezone(&Utc))?
             .timestamp_millis();
 
         timestamps.append_value(ts);
     }
 
-    Ok(to_batch(keys, values, timestamps)?)
+    let mut value_arrays = vec![];
+    for builder in &mut values {
+        value_arrays.push(builder.finish());
+    }
+    schema.to_batch(keys, timestamps, value_arrays)
 }
 
 fn _generate_random_batch(

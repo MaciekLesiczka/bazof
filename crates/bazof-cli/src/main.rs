@@ -26,8 +26,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Generate test parquet files from CSV files
-    Gen,
+    /// Generate test parquet files from CSV files for given table. Infers the schema from snapshot file
+    Gen {
+        /// Path to lakehouse directory
+        #[arg(short, long)]
+        path: PathBuf,
+
+        /// Table name
+        #[arg(short, long)]
+        table: String,
+
+        /// Filename, without extension
+        #[arg(short, long)]
+        file: String,
+    },
 
     /// Scan a table in a lakehouse directory
     Scan {
@@ -55,43 +67,33 @@ fn arrow_to_parquet(batch: RecordBatch) -> Result<Vec<u8>, BazofError> {
     Ok(buffer)
 }
 
-async fn generate_parquet_test_files() -> Result<(), Box<dyn std::error::Error>> {
-    let mut workspace_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    workspace_dir.pop();
-    workspace_dir.pop();
+async fn generate_parquet_test_files(
+    path: PathBuf,
+    table_name: String,
+    file: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let absolute_path = path.canonicalize()?;
+    let store_path = Path::from(absolute_path.to_string_lossy().to_string());
 
-    let test_data_path = workspace_dir.join("test-data");
-    let curr_dir = Path::from(test_data_path.to_str().unwrap());
+    println!("Using lakehouse path: {}", absolute_path.display());
 
     let local_store = Arc::new(LocalFileSystem::new());
-
-    let base_csv_path = workspace_dir
-        .join("test-data")
-        .join("table0")
-        .join("base.csv");
-    let csv = fs::read_to_string(base_csv_path)?;
-    let batch = csv_to_arrow(csv)?;
-    local_store
-        .put(
-            &curr_dir.child("table0").child("base.parquet"),
-            arrow_to_parquet(batch)?.into(),
-        )
+    let schema = Lakehouse::new(store_path, local_store)
+        .get_schema(&table_name)
         .await?;
 
-    let delta_csv_path = workspace_dir
-        .join("test-data")
-        .join("table0")
-        .join("delta1.csv");
-    let csv = fs::read_to_string(delta_csv_path)?;
-    let batch = csv_to_arrow(csv)?;
+    let table_path = absolute_path.join(table_name);
+    let csv = fs::read_to_string(table_path.join(format!("{file}.csv")))?;
+    let batch = csv_to_arrow(csv, schema)?;
+
+    let parquet_path = Path::from(table_path.join(format!("{file}.parquet")).to_str().unwrap());
+
+    let local_store = Arc::new(LocalFileSystem::new());
     local_store
-        .put(
-            &curr_dir.child("table0").child("delta1.parquet"),
-            arrow_to_parquet(batch)?.into(),
-        )
+        .put(&parquet_path, arrow_to_parquet(batch)?.into())
         .await?;
 
-    println!("Generated test parquet files successfully");
+    println!("Generated test parquet file successfully");
     Ok(())
 }
 
@@ -115,14 +117,7 @@ async fn scan_table(
         Current
     };
 
-    let absolute_path = path.canonicalize().map_err(|e| {
-        Box::<dyn std::error::Error>::from(format!(
-            "Error resolving path {}: {}",
-            path.display(),
-            e
-        ))
-    })?;
-
+    let absolute_path = path.canonicalize()?;
     let store_path = Path::from(absolute_path.to_string_lossy().to_string());
 
     println!("Using lakehouse path: {}", absolute_path.display());
@@ -147,8 +142,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Gen => {
-            generate_parquet_test_files().await?;
+        Commands::Gen { path, table, file } => {
+            generate_parquet_test_files(path.clone(), table.clone(), file.clone()).await?;
         }
         Commands::Scan { path, table, as_of } => {
             scan_table(path.clone(), table.clone(), as_of.clone()).await?;
