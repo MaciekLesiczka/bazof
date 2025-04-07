@@ -9,6 +9,9 @@ use std::sync::Arc;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ColumnType {
     String,
+    Int,
+    Boolean,
+    DateTime,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,28 +27,6 @@ pub struct TableSchema {
 }
 
 impl TableSchema {
-    fn _to_arrow_schema(&self) -> Result<Schema, BazofError> {
-        let mut fields = Vec::new();
-
-        fields.push(Field::new("key", DataType::Utf8, false));
-
-        for col in &self.columns {
-            let arrow_type = match col.data_type {
-                ColumnType::String => DataType::Utf8,
-            };
-
-            fields.push(Field::new(&col.name, arrow_type, col.nullable));
-        }
-
-        fields.push(Field::new(
-            "event_time",
-            DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
-            false,
-        ));
-
-        Ok(Schema::new(fields))
-    }
-
     pub fn array_builders(
         &self,
     ) -> (
@@ -79,9 +60,36 @@ impl TableSchema {
         }
 
         columns.push(Arc::new(timestamps.finish()));
-        let schema = Arc::new(self._to_arrow_schema()?);
+        let schema = Arc::new(self.to_arrow_schema()?);
 
         Ok(RecordBatch::try_new(schema, columns)?)
+    }
+
+    fn to_arrow_schema(&self) -> Result<Schema, BazofError> {
+        let mut fields = Vec::new();
+
+        fields.push(Field::new("key", DataType::Utf8, false));
+
+        for col in &self.columns {
+            let arrow_type = match col.data_type {
+                ColumnType::String => DataType::Utf8,
+                ColumnType::Int => DataType::Int64,
+                ColumnType::Boolean => DataType::Boolean,
+                ColumnType::DateTime => {
+                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
+                }
+            };
+
+            fields.push(Field::new(&col.name, arrow_type, col.nullable));
+        }
+
+        fields.push(Field::new(
+            "event_time",
+            DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+            false,
+        ));
+
+        Ok(Schema::new(fields))
     }
 }
 
@@ -126,21 +134,37 @@ mod tests {
             },
             {
                 "name":"bar",
-                "data_type":"String",
+                "data_type":"Int",
+                "nullable":false
+            },
+            {
+                "name":"flag",
+                "data_type":"Boolean",
+                "nullable":false
+            },
+            {
+                "name":"created_at",
+                "data_type":"DateTime",
                 "nullable":false
             }]
         }
   "#;
         let table_schema: TableSchema = serde_json::from_str(json_str).unwrap();
 
-        let arrow_schema = table_schema._to_arrow_schema().unwrap();
+        let arrow_schema = table_schema.to_arrow_schema().unwrap();
 
         assert_eq!(
             arrow_schema,
             Schema::new(vec![
                 Field::new("key", DataType::Utf8, false),
                 Field::new("foo", DataType::Utf8, true),
-                Field::new("bar", DataType::Utf8, false),
+                Field::new("bar", DataType::Int64, false),
+                Field::new("flag", DataType::Boolean, false),
+                Field::new(
+                    "created_at",
+                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+                    false
+                ),
                 Field::new(
                     "event_time",
                     DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
