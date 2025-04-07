@@ -3,8 +3,8 @@ use arrow_array::builder::ArrayBuilder;
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
 use arrow_array::RecordBatch;
-use bazof::TableSchema;
-use bazof::{array_builders, to_batch, BazofError};
+use bazof::BazofError;
+use bazof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
@@ -43,7 +43,15 @@ fn _generate_random_batch(
     let mut rng = rand::rng();
     let mut used_pairs = HashSet::new();
 
-    let (mut keys, mut values, mut timestamps) = array_builders();
+    let key_value_schema = TableSchema {
+        columns: vec![ColumnDef {
+            name: "value".to_string(),
+            data_type: ColumnType::String,
+            nullable: false,
+        }],
+    };
+
+    let (mut keys, mut values, mut timestamps) = key_value_schema.array_builders();
 
     while keys.len() < num_rows {
         let key = rng.random_range(0..num_keys as i64);
@@ -51,13 +59,16 @@ fn _generate_random_batch(
 
         if used_pairs.insert((key, ts)) {
             keys.append_value(key.to_string());
-            values.append_value(format!("val_{}", rng.random::<u32>()));
+            values[0].append_value(format!("val_{}", rng.random::<u32>()));
             timestamps.append_value(ts);
         }
     }
 
-    let batch = to_batch(keys, values, timestamps)?;
-
+    let mut value_arrays = vec![];
+    for builder in &mut values {
+        value_arrays.push(builder.finish());
+    }
+    let batch = key_value_schema.to_batch(keys, timestamps, value_arrays)?;
     _sort_batch_by_ts_desc(&batch)
 }
 
