@@ -32,7 +32,7 @@ impl Lakehouse {
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut values, mut timestamps) = schema.array_builders();
+        let (mut keys, mut values, mut timestamps) = schema.column_builders();
 
         for file in files {
             let full_path = table.path.child(file);
@@ -45,12 +45,6 @@ impl Lakehouse {
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_string::<i32>();
-
-                    let mut column_arrays = vec![];
-                    for col_idx in 1..schema.columns.len() + 1 {
-                        let column_array = batch.column(col_idx).as_string::<i32>();
-                        column_arrays.push(column_array);
-                    }
 
                     let ts_arr = batch
                         .column(batch.num_columns() - 1)
@@ -73,11 +67,8 @@ impl Lakehouse {
                             }
 
                             e.insert(ts_val);
-
                             for i in 0..schema.columns.len() {
-                                let val_arr = column_arrays[i];
-                                let val_val = val_arr.value(row_idx);
-                                values[i].append_value(val_val);
+                                values[i].append_value(batch.column(i + 1), row_idx);
                             }
                             keys.append_value(key_val);
 
@@ -90,7 +81,7 @@ impl Lakehouse {
 
         let mut value_arrays = vec![];
         for builder in &mut values {
-            value_arrays.push(builder.finish());
+            value_arrays.push(builder.builder.finish());
         }
         schema.to_batch(keys, timestamps, value_arrays)
     }

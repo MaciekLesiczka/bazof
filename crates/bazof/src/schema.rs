@@ -1,6 +1,7 @@
 use crate::BazofError;
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow_array::builder::{StringBuilder, TimestampMillisecondBuilder};
+use arrow_array::cast::AsArray;
 use arrow_array::types::GenericStringType;
 use arrow_array::{ArrayRef, GenericByteArray, RecordBatch};
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,24 @@ pub struct TableSchema {
     pub columns: Vec<ColumnDef>,
 }
 
+pub struct ColumnBuilder {
+    pub builder: StringBuilder,
+}
+
+impl ColumnBuilder {
+    pub fn new() -> Self {
+        ColumnBuilder {
+            builder: StringBuilder::new(),
+        }
+    }
+
+    pub fn append_value(&mut self, array: &ArrayRef, row_idx: usize) {
+        let val_arr = array.as_string::<i32>();
+        let val_val = val_arr.value(row_idx);
+        self.builder.append_value(val_val);
+    }
+}
+
 impl TableSchema {
     pub fn array_builders(
         &self,
@@ -37,6 +56,24 @@ impl TableSchema {
         let mut column_builders: Vec<StringBuilder> = vec![];
         for _ in &self.columns {
             column_builders.push(StringBuilder::new())
+        }
+        (
+            StringBuilder::new(),
+            column_builders,
+            TimestampMillisecondBuilder::new().with_timezone("UTC"),
+        )
+    }
+
+    pub fn column_builders(
+        &self,
+    ) -> (
+        StringBuilder,
+        Vec<ColumnBuilder>,
+        TimestampMillisecondBuilder,
+    ) {
+        let mut column_builders: Vec<ColumnBuilder> = vec![];
+        for _ in &self.columns {
+            column_builders.push(ColumnBuilder::new())
         }
         (
             StringBuilder::new(),
