@@ -79,11 +79,7 @@ impl Lakehouse {
             }
         }
 
-        let mut value_arrays = vec![];
-        for builder in &mut values {
-            value_arrays.push(builder.builder.finish());
-        }
-        schema.to_batch(keys, timestamps, value_arrays)
+        schema.to_batch(keys, timestamps, values)
     }
 
     pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, BazofError> {

@@ -2,8 +2,7 @@ use crate::BazofError;
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow_array::builder::{StringBuilder, TimestampMillisecondBuilder};
 use arrow_array::cast::AsArray;
-use arrow_array::types::GenericStringType;
-use arrow_array::{ArrayRef, GenericByteArray, RecordBatch};
+use arrow_array::{ArrayRef, RecordBatch};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -46,24 +45,6 @@ impl ColumnBuilder {
 }
 
 impl TableSchema {
-    pub fn array_builders(
-        &self,
-    ) -> (
-        StringBuilder,
-        Vec<StringBuilder>,
-        TimestampMillisecondBuilder,
-    ) {
-        let mut column_builders: Vec<StringBuilder> = vec![];
-        for _ in &self.columns {
-            column_builders.push(StringBuilder::new())
-        }
-        (
-            StringBuilder::new(),
-            column_builders,
-            TimestampMillisecondBuilder::new().with_timezone("UTC"),
-        )
-    }
-
     pub fn column_builders(
         &self,
     ) -> (
@@ -86,14 +67,14 @@ impl TableSchema {
         &self,
         mut keys: StringBuilder,
         mut timestamps: TimestampMillisecondBuilder,
-        values: Vec<GenericByteArray<GenericStringType<i32>>>,
+        values: Vec<ColumnBuilder>,
     ) -> Result<RecordBatch, BazofError> {
         let array_key = Arc::new(keys.finish());
         let mut columns: Vec<ArrayRef> = vec![];
         columns.push(array_key);
 
-        for value_array in values {
-            columns.push(Arc::new(value_array));
+        for mut builder in values {
+            columns.push(Arc::new(builder.builder.finish()));
         }
 
         columns.push(Arc::new(timestamps.finish()));
