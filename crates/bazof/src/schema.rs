@@ -1,7 +1,10 @@
 use crate::BazofError;
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
-use arrow_array::builder::{StringBuilder, TimestampMillisecondBuilder};
+use arrow_array::builder::{
+    BooleanBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder,
+};
 use arrow_array::cast::AsArray;
+use arrow_array::types::{Int64Type, TimestampMillisecondType};
 use arrow_array::{ArrayRef, RecordBatch};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -26,21 +29,66 @@ pub struct TableSchema {
     pub columns: Vec<ColumnDef>,
 }
 
-pub struct ColumnBuilder {
-    pub builder: StringBuilder,
+pub enum ColumnBuilder {
+    String(StringBuilder),
+    Int(Int64Builder),
+    Boolean(BooleanBuilder),
+    DateTime(TimestampMillisecondBuilder),
 }
 
 impl ColumnBuilder {
-    pub fn new() -> Self {
-        ColumnBuilder {
-            builder: StringBuilder::new(),
+    pub fn new(column_type: &ColumnType) -> Self {
+        match column_type {
+            ColumnType::String => ColumnBuilder::String(StringBuilder::new()),
+            ColumnType::Int => ColumnBuilder::Int(Int64Builder::new()),
+            ColumnType::Boolean => ColumnBuilder::Boolean(BooleanBuilder::new()),
+            ColumnType::DateTime => {
+                ColumnBuilder::DateTime(TimestampMillisecondBuilder::new().with_timezone("UTC"))
+            }
         }
     }
 
     pub fn append_value(&mut self, array: &ArrayRef, row_idx: usize) {
-        let val_arr = array.as_string::<i32>();
-        let val_val = val_arr.value(row_idx);
-        self.builder.append_value(val_val);
+        match self {
+            ColumnBuilder::String(builder) => {
+                let val_arr = array.as_string::<i32>();
+                let val_val = val_arr.value(row_idx);
+                builder.append_value(val_val);
+            }
+            ColumnBuilder::Int(builder) => {
+                let val_arr = array.as_primitive::<Int64Type>();
+                let val_val = val_arr.value(row_idx);
+                builder.append_value(val_val);
+            }
+            ColumnBuilder::Boolean(builder) => {
+                let val_arr = array.as_boolean();
+                let val_val = val_arr.value(row_idx);
+                builder.append_value(val_val);
+            }
+            ColumnBuilder::DateTime(builder) => {
+                let val_arr = array.as_primitive::<TimestampMillisecondType>();
+                let val_val = val_arr.value(row_idx);
+                builder.append_value(val_val);
+            }
+        }
+    }
+
+    pub fn append_string(&mut self, data: &str) {
+        match self {
+            ColumnBuilder::String(builder) => {
+                builder.append_value(data);
+            }
+            _ => panic!("unexpected column type"),
+        }
+    }
+
+    pub fn finish(&mut self) -> ArrayRef {
+        match self {
+            ColumnBuilder::String(builder) => Arc::new(builder.finish()),
+            ColumnBuilder::Int(builder) => Arc::new(builder.finish()),
+            ColumnBuilder::Boolean(builder) => Arc::new(builder.finish()),
+            ColumnBuilder::DateTime(builder) => Arc::new(builder.finish()),
+        }
     }
 }
 
@@ -53,8 +101,8 @@ impl TableSchema {
         TimestampMillisecondBuilder,
     ) {
         let mut column_builders: Vec<ColumnBuilder> = vec![];
-        for _ in &self.columns {
-            column_builders.push(ColumnBuilder::new())
+        for column in &self.columns {
+            column_builders.push(ColumnBuilder::new(&column.data_type));
         }
         (
             StringBuilder::new(),
@@ -74,7 +122,7 @@ impl TableSchema {
         columns.push(array_key);
 
         for mut builder in values {
-            columns.push(Arc::new(builder.builder.finish()));
+            columns.push(builder.finish());
         }
 
         columns.push(Arc::new(timestamps.finish()));

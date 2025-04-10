@@ -18,7 +18,7 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         keys.append_value(parts[0]);
 
         for i in 0..schema.columns.len() {
-            values[i].builder.append_value(parts[i + 1]);
+            values[i].append_string(parts[i + 1]);
         }
 
         let ts = DateTime::parse_from_rfc3339(parts[schema.columns.len() + 1])
@@ -55,7 +55,7 @@ fn _generate_random_batch(
 
         if used_pairs.insert((key, ts)) {
             keys.append_value(key.to_string());
-            values[0].builder.append_value(format!("val_{}", rng.random::<u32>()));
+            values[0].append_string(&format!("val_{}", rng.random::<u32>()));
             timestamps.append_value(ts);
         }
     }
