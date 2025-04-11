@@ -67,8 +67,10 @@ impl Lakehouse {
                             }
 
                             e.insert(ts_val);
-                            for i in 0..schema.columns.len() {
-                                values[i].append_value(batch.column(i + 1), row_idx);
+                            for (i, item) in
+                                values.iter_mut().enumerate().take(schema.columns.len())
+                            {
+                                item.append_value(batch.column(i + 1), row_idx);
                             }
                             keys.append_value(key_val);
 
@@ -92,12 +94,12 @@ impl Lakehouse {
 mod tests {
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
+    use arrow_array::types::Int64Type;
     use arrow_array::Array;
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
     use std::path::PathBuf;
-    use arrow_array::types::Int64Type;
 
     #[tokio::test]
     async fn scan_table_with_one_segment_and_delta() -> Result<(), Box<dyn std::error::Error>> {
@@ -196,12 +198,21 @@ mod tests {
         let lakehouse = Lakehouse::new(curr_dir, local_store);
 
         let result = lakehouse.scan("table2", Current).await?;
-        let result = bazof_batch_to_hash_map_2columns(&result);
+        let result = bazof_batch_to_hash_map_4columns(&result);
 
-        let expected: HashMap<String, (String, i64)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), 100)),
-            (2.to_string(), ("xyz2".to_string(), 222)),
-            (3.to_string(), ("www2".to_string(), 300)),
+        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
+            (
+                1.to_string(),
+                ("abc2".to_string(), 100, true, 1704067200000),
+            ),
+            (
+                2.to_string(),
+                ("xyz2".to_string(), 222, false, 1704067200000),
+            ),
+            (
+                3.to_string(),
+                ("www2".to_string(), 300, false, 1709251200000),
+            ),
         ]);
 
         assert_eq!(result, expected);
@@ -209,11 +220,17 @@ mod tests {
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table2", EventTime(past)).await?;
 
-        let result = bazof_batch_to_hash_map_2columns(&result);
+        let result = bazof_batch_to_hash_map_4columns(&result);
 
-        let expected: HashMap<String, (String, i64)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), 100)),
-            (2.to_string(), ("xyz".to_string(), 200)),
+        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
+            (
+                1.to_string(),
+                ("abc2".to_string(), 100, true, 1704067200000),
+            ),
+            (
+                2.to_string(),
+                ("xyz".to_string(), 200, false, 1704067200000),
+            ),
         ]);
 
         assert_eq!(result, expected);
@@ -234,17 +251,24 @@ mod tests {
         result_map
     }
 
-    fn bazof_batch_to_hash_map_2columns(batch: &RecordBatch) -> HashMap<String, (String, i64)> {
+    fn bazof_batch_to_hash_map_4columns(
+        batch: &RecordBatch,
+    ) -> HashMap<String, (String, i64, bool, i64)> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
         let value2_array = batch.column(2).as_primitive::<Int64Type>();
-        let mut result_map: HashMap<String, (String, i64)> = HashMap::new();
+        let value3_array = batch.column(3).as_boolean();
+
+        let value4_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
+        let mut result_map: HashMap<String, (String, i64, bool, i64)> = HashMap::new();
         for i in 0..key_array.len() {
             result_map.insert(
                 key_array.value(i).to_owned(),
                 (
                     value_array.value(i).to_owned(),
                     value2_array.value(i).to_owned(),
+                    value3_array.value(i).to_owned(),
+                    value4_array.value(i).to_owned(),
                 ),
             );
         }

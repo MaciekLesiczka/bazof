@@ -8,9 +8,9 @@ use bazof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
-use parquet::column;
+use std::error::Error;
 
-pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, BazofError> {
+pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box<dyn Error>> {
     let (mut keys, mut values, mut timestamps) = schema.column_builders();
 
     for line in csv.split('\n') {
@@ -19,15 +19,22 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         keys.append_value(parts[0]);
 
         for i in 0..schema.columns.len() {
-
-            match schema.columns[i].data_type{
+            match schema.columns[i].data_type {
                 ColumnType::String => {
                     values[i].append_string(parts[i + 1]);
-                },
+                }
                 ColumnType::Int => {
-                    values[i].append_int( parts[i + 1].parse::<i64>()?);
-                },
-                _ => !panic!("Unsupported column type {:?}", schema.columns[i].data_type),
+                    values[i].append_int(parts[i + 1].parse::<i64>()?);
+                }
+                ColumnType::Boolean => {
+                    values[i].append_boolean(parts[i + 1].parse::<bool>()?);
+                }
+                ColumnType::DateTime => {
+                    let ts = DateTime::parse_from_rfc3339(parts[i + 1])
+                        .map(|dt| dt.with_timezone(&Utc))?
+                        .timestamp_millis();
+                    values[i].append_datetime(ts);
+                }
             }
         }
 
@@ -38,7 +45,7 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         timestamps.append_value(ts);
     }
 
-    schema.to_batch(keys, timestamps, values)
+    Ok(schema.to_batch(keys, timestamps, values)?)
 }
 
 fn _generate_random_batch(

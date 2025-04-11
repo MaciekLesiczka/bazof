@@ -91,6 +91,24 @@ impl ColumnBuilder {
         }
     }
 
+    pub fn append_boolean(&mut self, data: bool) {
+        match self {
+            ColumnBuilder::Boolean(builder) => {
+                builder.append_value(data);
+            }
+            _ => panic!("unexpected column type"),
+        }
+    }
+
+    pub fn append_datetime(&mut self, data: i64) {
+        match self {
+            ColumnBuilder::DateTime(builder) => {
+                builder.append_value(data);
+            }
+            _ => panic!("unexpected column type"),
+        }
+    }
+
     pub fn finish(&mut self) -> ArrayRef {
         match self {
             ColumnBuilder::String(builder) => Arc::new(builder.finish()),
@@ -259,22 +277,22 @@ mod tests {
         let date_builder = ColumnBuilder::new(&ColumnType::DateTime);
 
         match string_builder {
-            ColumnBuilder::String(_) => assert!(true),
+            ColumnBuilder::String(_) => {}
             _ => panic!("Expected String builder"),
         }
 
         match int_builder {
-            ColumnBuilder::Int(_) => assert!(true),
+            ColumnBuilder::Int(_) => {}
             _ => panic!("Expected Int builder"),
         }
 
         match bool_builder {
-            ColumnBuilder::Boolean(_) => assert!(true),
+            ColumnBuilder::Boolean(_) => {}
             _ => panic!("Expected Boolean builder"),
         }
 
         match date_builder {
-            ColumnBuilder::DateTime(_) => assert!(true),
+            ColumnBuilder::DateTime(_) => {}
             _ => panic!("Expected DateTime builder"),
         }
     }
@@ -354,9 +372,9 @@ mod tests {
         let result = bool_builder.finish();
         let result_array = result.as_boolean();
         assert_eq!(result_array.len(), 3);
-        assert_eq!(result_array.value(0), true);
-        assert_eq!(result_array.value(1), false);
-        assert_eq!(result_array.value(2), true);
+        assert!(result_array.value(0));
+        assert!(!result_array.value(1));
+        assert!(result_array.value(2));
 
         let mut date_builder = ColumnBuilder::new(&ColumnType::DateTime);
         date_builder.append_value(&date_array, 0);
@@ -469,8 +487,8 @@ mod tests {
         assert_eq!(int_array.value(1), 200);
 
         let bool_array = batch.column(3).as_boolean();
-        assert_eq!(bool_array.value(0), true);
-        assert_eq!(bool_array.value(1), false);
+        assert!(bool_array.value(0));
+        assert!(!bool_array.value(1));
 
         let date_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
         assert_eq!(date_array.value(0), date1);

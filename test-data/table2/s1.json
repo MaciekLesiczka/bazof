@@ -10,6 +10,16 @@
         "name": "value2",
         "data_type": "Int",
         "nullable": false
+      },
+      {
+        "name": "is_active",
+        "data_type": "Boolean",
+        "nullable": false
+      },
+      {
+        "name": "created",
+        "data_type": "DateTime",
+        "nullable": false
       }
     ]
   },
