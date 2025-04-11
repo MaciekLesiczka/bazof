@@ -8,6 +8,7 @@ use bazof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
+use parquet::column;
 
 pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, BazofError> {
     let (mut keys, mut values, mut timestamps) = schema.column_builders();
@@ -18,7 +19,16 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         keys.append_value(parts[0]);
 
         for i in 0..schema.columns.len() {
-            values[i].append_string(parts[i + 1]);
+
+            match schema.columns[i].data_type{
+                ColumnType::String => {
+                    values[i].append_string(parts[i + 1]);
+                },
+                ColumnType::Int => {
+                    values[i].append_int( parts[i + 1].parse::<i64>()?);
+                },
+                _ => !panic!("Unsupported column type {:?}", schema.columns[i].data_type),
+            }
         }
 
         let ts = DateTime::parse_from_rfc3339(parts[schema.columns.len() + 1])

@@ -82,6 +82,15 @@ impl ColumnBuilder {
         }
     }
 
+    pub fn append_int(&mut self, data: i64) {
+        match self {
+            ColumnBuilder::Int(builder) => {
+                builder.append_value(data);
+            }
+            _ => panic!("unexpected column type"),
+        }
+    }
+
     pub fn finish(&mut self) -> ArrayRef {
         match self {
             ColumnBuilder::String(builder) => Arc::new(builder.finish()),
@@ -293,6 +302,10 @@ mod tests {
         let mut int_builder = ColumnBuilder::new(&ColumnType::Int);
 
         int_builder.append_string("test");
+
+        let mut string_builder = ColumnBuilder::new(&ColumnType::String);
+
+        string_builder.append_int(134);
     }
 
     #[test]

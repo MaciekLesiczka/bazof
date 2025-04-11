@@ -97,6 +97,7 @@ mod tests {
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
     use std::path::PathBuf;
+    use arrow_array::types::Int64Type;
 
     #[tokio::test]
     async fn scan_table_with_one_segment_and_delta() -> Result<(), Box<dyn std::error::Error>> {
@@ -197,10 +198,10 @@ mod tests {
         let result = lakehouse.scan("table2", Current).await?;
         let result = bazof_batch_to_hash_map_2columns(&result);
 
-        let expected: HashMap<String, (String, String)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
-            (2.to_string(), ("xyz2".to_string(), "II_xyz".to_string())),
-            (3.to_string(), ("www2".to_string(), "II_www2".to_string())),
+        let expected: HashMap<String, (String, i64)> = HashMap::from([
+            (1.to_string(), ("abc2".to_string(), 100)),
+            (2.to_string(), ("xyz2".to_string(), 222)),
+            (3.to_string(), ("www2".to_string(), 300)),
         ]);
 
         assert_eq!(result, expected);
@@ -210,9 +211,9 @@ mod tests {
 
         let result = bazof_batch_to_hash_map_2columns(&result);
 
-        let expected: HashMap<String, (String, String)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
-            (2.to_string(), ("xyz".to_string(), "II_xyz".to_string())),
+        let expected: HashMap<String, (String, i64)> = HashMap::from([
+            (1.to_string(), ("abc2".to_string(), 100)),
+            (2.to_string(), ("xyz".to_string(), 200)),
         ]);
 
         assert_eq!(result, expected);
@@ -233,11 +234,11 @@ mod tests {
         result_map
     }
 
-    fn bazof_batch_to_hash_map_2columns(batch: &RecordBatch) -> HashMap<String, (String, String)> {
+    fn bazof_batch_to_hash_map_2columns(batch: &RecordBatch) -> HashMap<String, (String, i64)> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
-        let value2_array = batch.column(2).as_string::<i32>();
-        let mut result_map: HashMap<String, (String, String)> = HashMap::new();
+        let value2_array = batch.column(2).as_primitive::<Int64Type>();
+        let mut result_map: HashMap<String, (String, i64)> = HashMap::new();
         for i in 0..key_array.len() {
             result_map.insert(
                 key_array.value(i).to_owned(),
