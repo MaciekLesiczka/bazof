@@ -8,9 +8,10 @@ use bazof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
+use std::error::Error;
 
-pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, BazofError> {
-    let (mut keys, mut values, mut timestamps) = schema.array_builders();
+pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box<dyn Error>> {
+    let (mut keys, mut values, mut timestamps) = schema.column_builders();
 
     for line in csv.split('\n') {
         let parts: Vec<&str> = line.split(',').collect();
@@ -18,7 +19,23 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         keys.append_value(parts[0]);
 
         for i in 0..schema.columns.len() {
-            values[i].append_value(parts[i + 1]);
+            match schema.columns[i].data_type {
+                ColumnType::String => {
+                    values[i].append_string(parts[i + 1]);
+                }
+                ColumnType::Int => {
+                    values[i].append_int(parts[i + 1].parse::<i64>()?);
+                }
+                ColumnType::Boolean => {
+                    values[i].append_boolean(parts[i + 1].parse::<bool>()?);
+                }
+                ColumnType::DateTime => {
+                    let ts = DateTime::parse_from_rfc3339(parts[i + 1])
+                        .map(|dt| dt.with_timezone(&Utc))?
+                        .timestamp_millis();
+                    values[i].append_datetime(ts);
+                }
+            }
         }
 
         let ts = DateTime::parse_from_rfc3339(parts[schema.columns.len() + 1])
@@ -28,11 +45,7 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Baz
         timestamps.append_value(ts);
     }
 
-    let mut value_arrays = vec![];
-    for builder in &mut values {
-        value_arrays.push(builder.finish());
-    }
-    schema.to_batch(keys, timestamps, value_arrays)
+    Ok(schema.to_batch(keys, timestamps, values)?)
 }
 
 fn _generate_random_batch(
@@ -51,7 +64,7 @@ fn _generate_random_batch(
         }],
     };
 
-    let (mut keys, mut values, mut timestamps) = key_value_schema.array_builders();
+    let (mut keys, mut values, mut timestamps) = key_value_schema.column_builders();
 
     while keys.len() < num_rows {
         let key = rng.random_range(0..num_keys as i64);
@@ -59,16 +72,12 @@ fn _generate_random_batch(
 
         if used_pairs.insert((key, ts)) {
             keys.append_value(key.to_string());
-            values[0].append_value(format!("val_{}", rng.random::<u32>()));
+            values[0].append_string(&format!("val_{}", rng.random::<u32>()));
             timestamps.append_value(ts);
         }
     }
 
-    let mut value_arrays = vec![];
-    for builder in &mut values {
-        value_arrays.push(builder.finish());
-    }
-    let batch = key_value_schema.to_batch(keys, timestamps, value_arrays)?;
+    let batch = key_value_schema.to_batch(keys, timestamps, values)?;
     _sort_batch_by_ts_desc(&batch)
 }
 

@@ -32,7 +32,7 @@ impl Lakehouse {
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut values, mut timestamps) = schema.array_builders();
+        let (mut keys, mut values, mut timestamps) = schema.column_builders();
 
         for file in files {
             let full_path = table.path.child(file);
@@ -45,12 +45,6 @@ impl Lakehouse {
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_string::<i32>();
-
-                    let mut column_arrays = vec![];
-                    for col_idx in 1..schema.columns.len() + 1 {
-                        let column_array = batch.column(col_idx).as_string::<i32>();
-                        column_arrays.push(column_array);
-                    }
 
                     let ts_arr = batch
                         .column(batch.num_columns() - 1)
@@ -73,11 +67,10 @@ impl Lakehouse {
                             }
 
                             e.insert(ts_val);
-
-                            for i in 0..schema.columns.len() {
-                                let val_arr = column_arrays[i];
-                                let val_val = val_arr.value(row_idx);
-                                values[i].append_value(val_val);
+                            for (i, item) in
+                                values.iter_mut().enumerate().take(schema.columns.len())
+                            {
+                                item.append_value(batch.column(i + 1), row_idx);
                             }
                             keys.append_value(key_val);
 
@@ -88,11 +81,7 @@ impl Lakehouse {
             }
         }
 
-        let mut value_arrays = vec![];
-        for builder in &mut values {
-            value_arrays.push(builder.finish());
-        }
-        schema.to_batch(keys, timestamps, value_arrays)
+        schema.to_batch(keys, timestamps, values)
     }
 
     pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, BazofError> {
@@ -105,6 +94,7 @@ impl Lakehouse {
 mod tests {
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
+    use arrow_array::types::Int64Type;
     use arrow_array::Array;
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
@@ -208,12 +198,21 @@ mod tests {
         let lakehouse = Lakehouse::new(curr_dir, local_store);
 
         let result = lakehouse.scan("table2", Current).await?;
-        let result = bazof_batch_to_hash_map_2columns(&result);
+        let result = bazof_batch_to_hash_map_4columns(&result);
 
-        let expected: HashMap<String, (String, String)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
-            (2.to_string(), ("xyz2".to_string(), "II_xyz".to_string())),
-            (3.to_string(), ("www2".to_string(), "II_www2".to_string())),
+        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
+            (
+                1.to_string(),
+                ("abc2".to_string(), 100, true, 1704067200000),
+            ),
+            (
+                2.to_string(),
+                ("xyz2".to_string(), 222, false, 1704067200000),
+            ),
+            (
+                3.to_string(),
+                ("www2".to_string(), 300, false, 1709251200000),
+            ),
         ]);
 
         assert_eq!(result, expected);
@@ -221,11 +220,17 @@ mod tests {
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table2", EventTime(past)).await?;
 
-        let result = bazof_batch_to_hash_map_2columns(&result);
+        let result = bazof_batch_to_hash_map_4columns(&result);
 
-        let expected: HashMap<String, (String, String)> = HashMap::from([
-            (1.to_string(), ("abc2".to_string(), "II_abc".to_string())),
-            (2.to_string(), ("xyz".to_string(), "II_xyz".to_string())),
+        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
+            (
+                1.to_string(),
+                ("abc2".to_string(), 100, true, 1704067200000),
+            ),
+            (
+                2.to_string(),
+                ("xyz".to_string(), 200, false, 1704067200000),
+            ),
         ]);
 
         assert_eq!(result, expected);
@@ -246,17 +251,24 @@ mod tests {
         result_map
     }
 
-    fn bazof_batch_to_hash_map_2columns(batch: &RecordBatch) -> HashMap<String, (String, String)> {
+    fn bazof_batch_to_hash_map_4columns(
+        batch: &RecordBatch,
+    ) -> HashMap<String, (String, i64, bool, i64)> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(1).as_string::<i32>();
-        let value2_array = batch.column(2).as_string::<i32>();
-        let mut result_map: HashMap<String, (String, String)> = HashMap::new();
+        let value2_array = batch.column(2).as_primitive::<Int64Type>();
+        let value3_array = batch.column(3).as_boolean();
+
+        let value4_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
+        let mut result_map: HashMap<String, (String, i64, bool, i64)> = HashMap::new();
         for i in 0..key_array.len() {
             result_map.insert(
                 key_array.value(i).to_owned(),
                 (
                     value_array.value(i).to_owned(),
                     value2_array.value(i).to_owned(),
+                    value3_array.value(i).to_owned(),
+                    value4_array.value(i).to_owned(),
                 ),
             );
         }
