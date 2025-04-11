@@ -162,6 +162,8 @@ impl TableSchema {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arrow_array::{Array, BooleanArray, Int64Array, StringArray, TimestampMillisecondArray};
+    use chrono::{TimeZone, Utc};
     #[test]
     fn test_deserialization() {
         let json_str = r#"{
@@ -238,5 +240,231 @@ mod tests {
                 ),
             ])
         );
+    }
+
+    #[test]
+    fn test_column_builder_creation() {
+        let string_builder = ColumnBuilder::new(&ColumnType::String);
+        let int_builder = ColumnBuilder::new(&ColumnType::Int);
+        let bool_builder = ColumnBuilder::new(&ColumnType::Boolean);
+        let date_builder = ColumnBuilder::new(&ColumnType::DateTime);
+
+        match string_builder {
+            ColumnBuilder::String(_) => assert!(true),
+            _ => panic!("Expected String builder"),
+        }
+
+        match int_builder {
+            ColumnBuilder::Int(_) => assert!(true),
+            _ => panic!("Expected Int builder"),
+        }
+
+        match bool_builder {
+            ColumnBuilder::Boolean(_) => assert!(true),
+            _ => panic!("Expected Boolean builder"),
+        }
+
+        match date_builder {
+            ColumnBuilder::DateTime(_) => assert!(true),
+            _ => panic!("Expected DateTime builder"),
+        }
+    }
+
+    #[test]
+    fn test_append_string_to_builder() {
+        let mut string_builder = ColumnBuilder::new(&ColumnType::String);
+
+        string_builder.append_string("test1");
+        string_builder.append_string("test2");
+        string_builder.append_string("test3");
+
+        let array = string_builder.finish();
+        let string_array = array.as_string::<i32>();
+
+        assert_eq!(string_array.len(), 3);
+        assert_eq!(string_array.value(0), "test1");
+        assert_eq!(string_array.value(1), "test2");
+        assert_eq!(string_array.value(2), "test3");
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected column type")]
+    fn test_append_string_to_wrong_builder() {
+        let mut int_builder = ColumnBuilder::new(&ColumnType::Int);
+
+        int_builder.append_string("test");
+    }
+
+    #[test]
+    fn test_append_value_from_array() {
+        let string_array: ArrayRef = Arc::new(StringArray::from(vec!["str1", "str2", "str3"]));
+        let int_array: ArrayRef = Arc::new(Int64Array::from(vec![100, 200, 300]));
+        let bool_array: ArrayRef = Arc::new(BooleanArray::from(vec![true, false, true]));
+
+        let date1 = Utc
+            .with_ymd_and_hms(2023, 1, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let date2 = Utc
+            .with_ymd_and_hms(2023, 2, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let date3 = Utc
+            .with_ymd_and_hms(2023, 3, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let date_array: ArrayRef =
+            Arc::new(TimestampMillisecondArray::from(vec![date1, date2, date3]));
+
+        let mut string_builder = ColumnBuilder::new(&ColumnType::String);
+        string_builder.append_value(&string_array, 0);
+        string_builder.append_value(&string_array, 2);
+        let result = string_builder.finish();
+        let result_array = result.as_string::<i32>();
+        assert_eq!(result_array.len(), 2);
+        assert_eq!(result_array.value(0), "str1");
+        assert_eq!(result_array.value(1), "str3");
+
+        let mut int_builder = ColumnBuilder::new(&ColumnType::Int);
+        int_builder.append_value(&int_array, 1);
+        int_builder.append_value(&int_array, 2);
+        let result = int_builder.finish();
+        let result_array = result.as_primitive::<Int64Type>();
+        assert_eq!(result_array.len(), 2);
+        assert_eq!(result_array.value(0), 200);
+        assert_eq!(result_array.value(1), 300);
+
+        let mut bool_builder = ColumnBuilder::new(&ColumnType::Boolean);
+        bool_builder.append_value(&bool_array, 0);
+        bool_builder.append_value(&bool_array, 1);
+        bool_builder.append_value(&bool_array, 2);
+        let result = bool_builder.finish();
+        let result_array = result.as_boolean();
+        assert_eq!(result_array.len(), 3);
+        assert_eq!(result_array.value(0), true);
+        assert_eq!(result_array.value(1), false);
+        assert_eq!(result_array.value(2), true);
+
+        let mut date_builder = ColumnBuilder::new(&ColumnType::DateTime);
+        date_builder.append_value(&date_array, 0);
+        date_builder.append_value(&date_array, 2);
+        let result = date_builder.finish();
+        let result_array = result.as_primitive::<TimestampMillisecondType>();
+        assert_eq!(result_array.len(), 2);
+        assert_eq!(result_array.value(0), date1);
+        assert_eq!(result_array.value(1), date3);
+    }
+
+    #[test]
+    fn test_mixed_column_batch() {
+        let schema = TableSchema {
+            columns: vec![
+                ColumnDef {
+                    name: "string_col".to_string(),
+                    data_type: ColumnType::String,
+                    nullable: false,
+                },
+                ColumnDef {
+                    name: "int_col".to_string(),
+                    data_type: ColumnType::Int,
+                    nullable: false,
+                },
+                ColumnDef {
+                    name: "bool_col".to_string(),
+                    data_type: ColumnType::Boolean,
+                    nullable: false,
+                },
+                ColumnDef {
+                    name: "date_col".to_string(),
+                    data_type: ColumnType::DateTime,
+                    nullable: false,
+                },
+            ],
+        };
+
+        let (mut keys, mut value_builders, mut timestamps) = schema.column_builders();
+
+        keys.append_value("key1");
+        keys.append_value("key2");
+
+        value_builders[0].append_string("string1");
+        value_builders[0].append_string("string2");
+
+        let int_array: ArrayRef = Arc::new(Int64Array::from(vec![100, 200]));
+        let bool_array: ArrayRef = Arc::new(BooleanArray::from(vec![true, false]));
+        let date1 = Utc
+            .with_ymd_and_hms(2023, 1, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let date2 = Utc
+            .with_ymd_and_hms(2023, 2, 1, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let date_array: ArrayRef = Arc::new(TimestampMillisecondArray::from(vec![date1, date2]));
+
+        value_builders[1].append_value(&int_array, 0);
+        value_builders[1].append_value(&int_array, 1);
+
+        value_builders[2].append_value(&bool_array, 0);
+        value_builders[2].append_value(&bool_array, 1);
+
+        value_builders[3].append_value(&date_array, 0);
+        value_builders[3].append_value(&date_array, 1);
+
+        let ts1 = Utc
+            .with_ymd_and_hms(2023, 1, 10, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let ts2 = Utc
+            .with_ymd_and_hms(2023, 2, 10, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        timestamps.append_value(ts1);
+        timestamps.append_value(ts2);
+
+        let batch = schema.to_batch(keys, timestamps, value_builders).unwrap();
+
+        let arrow_schema = batch.schema();
+        assert_eq!(arrow_schema.fields().len(), 6); // key + 4 columns + event_time
+        assert_eq!(arrow_schema.field(0).name(), "key");
+        assert_eq!(arrow_schema.field(0).data_type(), &DataType::Utf8);
+        assert_eq!(arrow_schema.field(1).name(), "string_col");
+        assert_eq!(arrow_schema.field(1).data_type(), &DataType::Utf8);
+        assert_eq!(arrow_schema.field(2).name(), "int_col");
+        assert_eq!(arrow_schema.field(2).data_type(), &DataType::Int64);
+        assert_eq!(arrow_schema.field(3).name(), "bool_col");
+        assert_eq!(arrow_schema.field(3).data_type(), &DataType::Boolean);
+        assert_eq!(arrow_schema.field(4).name(), "date_col");
+        assert_eq!(
+            arrow_schema.field(4).data_type(),
+            &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
+        );
+        assert_eq!(arrow_schema.field(5).name(), "event_time");
+
+        assert_eq!(batch.num_rows(), 2);
+
+        let key_array = batch.column(0).as_string::<i32>();
+        assert_eq!(key_array.value(0), "key1");
+        assert_eq!(key_array.value(1), "key2");
+
+        let string_array = batch.column(1).as_string::<i32>();
+        assert_eq!(string_array.value(0), "string1");
+        assert_eq!(string_array.value(1), "string2");
+
+        let int_array = batch.column(2).as_primitive::<Int64Type>();
+        assert_eq!(int_array.value(0), 100);
+        assert_eq!(int_array.value(1), 200);
+
+        let bool_array = batch.column(3).as_boolean();
+        assert_eq!(bool_array.value(0), true);
+        assert_eq!(bool_array.value(1), false);
+
+        let date_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
+        assert_eq!(date_array.value(0), date1);
+        assert_eq!(date_array.value(1), date2);
+
+        let ts_array = batch.column(5).as_primitive::<TimestampMillisecondType>();
+        assert_eq!(ts_array.value(0), ts1);
+        assert_eq!(ts_array.value(1), ts2);
     }
 }
