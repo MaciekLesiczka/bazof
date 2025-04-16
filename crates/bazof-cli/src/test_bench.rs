@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::error::Error;
 
 pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box<dyn Error>> {
-    let (mut keys, mut values, mut timestamps) = schema.column_builders();
+    let (mut keys, mut timestamps, mut values) = schema.column_builders();
 
     for line in csv.split('\n') {
         let parts: Vec<&str> = line.split(',').collect();
@@ -65,7 +65,7 @@ fn _generate_random_batch(
         }],
     };
 
-    let (mut keys, mut values, mut timestamps) = key_value_schema.column_builders();
+    let (mut keys, mut timestamps, mut values) = key_value_schema.column_builders();
 
     while keys.len() < num_rows {
         let key = rng.random_range(0..num_keys as i64);

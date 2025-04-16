@@ -124,8 +124,8 @@ impl TableSchema {
         &self,
     ) -> (
         StringBuilder,
-        Vec<ColumnBuilder>,
         TimestampMillisecondBuilder,
+        Vec<ColumnBuilder>,
     ) {
         let mut column_builders: Vec<ColumnBuilder> = vec![];
         for column in &self.columns {
@@ -133,8 +133,8 @@ impl TableSchema {
         }
         (
             StringBuilder::new(),
-            column_builders,
             TimestampMillisecondBuilder::new().with_timezone("UTC"),
+            column_builders,
         )
     }
 
@@ -413,7 +413,7 @@ mod tests {
             ],
         };
 
-        let (mut keys, mut value_builders, mut timestamps) = schema.column_builders();
+        let (mut keys, mut timestamps, mut value_builders) = schema.column_builders();
 
         keys.append_value("key1");
         keys.append_value("key2");

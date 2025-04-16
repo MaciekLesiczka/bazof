@@ -32,7 +32,7 @@ impl Lakehouse {
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut values, mut timestamps) = schema.column_builders();
+        let (mut keys, mut timestamps, mut values) = schema.column_builders();
 
         for file in files {
             let full_path = table.path.child(file);
