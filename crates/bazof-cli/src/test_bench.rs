@@ -18,31 +18,32 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box
 
         keys.append_value(parts[0]);
 
+        let ts = DateTime::parse_from_rfc3339(parts[1])
+            .map(|dt| dt.with_timezone(&Utc))?
+            .timestamp_millis();
+
+        timestamps.append_value(ts);
+        #[allow(clippy::needless_range_loop)]
         for i in 0..schema.columns.len() {
+            let idx = i + 2;
             match schema.columns[i].data_type {
                 ColumnType::String => {
-                    values[i].append_string(parts[i + 1]);
+                    values[i].append_string(parts[idx]);
                 }
                 ColumnType::Int => {
-                    values[i].append_int(parts[i + 1].parse::<i64>()?);
+                    values[i].append_int(parts[idx].parse::<i64>()?);
                 }
                 ColumnType::Boolean => {
-                    values[i].append_boolean(parts[i + 1].parse::<bool>()?);
+                    values[i].append_boolean(parts[idx].parse::<bool>()?);
                 }
                 ColumnType::DateTime => {
-                    let ts = DateTime::parse_from_rfc3339(parts[i + 1])
+                    let ts = DateTime::parse_from_rfc3339(parts[idx])
                         .map(|dt| dt.with_timezone(&Utc))?
                         .timestamp_millis();
                     values[i].append_datetime(ts);
                 }
             }
         }
-
-        let ts = DateTime::parse_from_rfc3339(parts[schema.columns.len() + 1])
-            .map(|dt| dt.with_timezone(&Utc))?
-            .timestamp_millis();
-
-        timestamps.append_value(ts);
     }
 
     Ok(schema.to_batch(keys, timestamps, values)?)
@@ -83,23 +84,23 @@ fn _generate_random_batch(
 
 pub fn print_batch(batch: &RecordBatch) {
     let key_arr = batch.column(0).as_string::<i32>();
-    let val_arr = batch.column(1).as_string::<i32>();
-    let ts_arr = batch.column(2).as_primitive::<TimestampMillisecondType>();
+    let ts_arr = batch.column(1).as_primitive::<TimestampMillisecondType>();
+    let val_arr = batch.column(2).as_string::<i32>();
 
     for row_idx in 0..batch.num_rows() {
         let key_val = key_arr.value(row_idx);
-        let val_val = val_arr.value(row_idx);
         let ts_val = ts_arr.value(row_idx);
+        let val_val = val_arr.value(row_idx);
 
         println!(
-            "Row {}: Key: {}, Value: {}, Timestamp: {}",
-            row_idx, key_val, val_val, ts_val
+            "Row {}: Key: {}, Timestamp: {}, Value: {}",
+            row_idx, key_val, ts_val, val_val
         );
     }
 }
 
 fn _sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, BazofError> {
-    let ts_column = batch.column(2);
+    let ts_column = batch.column(1);
 
     let sort_indices = sort_to_indices(
         ts_column,

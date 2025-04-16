@@ -147,12 +147,12 @@ impl TableSchema {
         let array_key = Arc::new(keys.finish());
         let mut columns: Vec<ArrayRef> = vec![];
         columns.push(array_key);
+        columns.push(Arc::new(timestamps.finish()));
 
         for mut builder in values {
             columns.push(builder.finish());
         }
 
-        columns.push(Arc::new(timestamps.finish()));
         let schema = Arc::new(self.to_arrow_schema()?);
 
         Ok(RecordBatch::try_new(schema, columns)?)
@@ -162,6 +162,12 @@ impl TableSchema {
         let mut fields = Vec::new();
 
         fields.push(Field::new("key", DataType::Utf8, false));
+
+        fields.push(Field::new(
+            "event_time",
+            DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+            false,
+        ));
 
         for col in &self.columns {
             let arrow_type = match col.data_type {
@@ -175,12 +181,6 @@ impl TableSchema {
 
             fields.push(Field::new(&col.name, arrow_type, col.nullable));
         }
-
-        fields.push(Field::new(
-            "event_time",
-            DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
-            false,
-        ));
 
         Ok(Schema::new(fields))
     }
@@ -252,6 +252,11 @@ mod tests {
             arrow_schema,
             Schema::new(vec![
                 Field::new("key", DataType::Utf8, false),
+                Field::new(
+                    "event_time",
+                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+                    false,
+                ),
                 Field::new("foo", DataType::Utf8, true),
                 Field::new("bar", DataType::Int64, false),
                 Field::new("flag", DataType::Boolean, false),
@@ -259,11 +264,6 @@ mod tests {
                     "created_at",
                     DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
                     false
-                ),
-                Field::new(
-                    "event_time",
-                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
-                    false,
                 ),
             ])
         );
@@ -418,6 +418,17 @@ mod tests {
         keys.append_value("key1");
         keys.append_value("key2");
 
+        let ts1 = Utc
+            .with_ymd_and_hms(2023, 1, 10, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let ts2 = Utc
+            .with_ymd_and_hms(2023, 2, 10, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        timestamps.append_value(ts1);
+        timestamps.append_value(ts2);
+
         value_builders[0].append_string("string1");
         value_builders[0].append_string("string2");
 
@@ -442,35 +453,26 @@ mod tests {
         value_builders[3].append_value(&date_array, 0);
         value_builders[3].append_value(&date_array, 1);
 
-        let ts1 = Utc
-            .with_ymd_and_hms(2023, 1, 10, 0, 0, 0)
-            .unwrap()
-            .timestamp_millis();
-        let ts2 = Utc
-            .with_ymd_and_hms(2023, 2, 10, 0, 0, 0)
-            .unwrap()
-            .timestamp_millis();
-        timestamps.append_value(ts1);
-        timestamps.append_value(ts2);
-
         let batch = schema.to_batch(keys, timestamps, value_builders).unwrap();
 
         let arrow_schema = batch.schema();
         assert_eq!(arrow_schema.fields().len(), 6); // key + 4 columns + event_time
         assert_eq!(arrow_schema.field(0).name(), "key");
         assert_eq!(arrow_schema.field(0).data_type(), &DataType::Utf8);
-        assert_eq!(arrow_schema.field(1).name(), "string_col");
-        assert_eq!(arrow_schema.field(1).data_type(), &DataType::Utf8);
-        assert_eq!(arrow_schema.field(2).name(), "int_col");
-        assert_eq!(arrow_schema.field(2).data_type(), &DataType::Int64);
-        assert_eq!(arrow_schema.field(3).name(), "bool_col");
-        assert_eq!(arrow_schema.field(3).data_type(), &DataType::Boolean);
-        assert_eq!(arrow_schema.field(4).name(), "date_col");
+
+        assert_eq!(arrow_schema.field(1).name(), "event_time");
+
+        assert_eq!(arrow_schema.field(2).name(), "string_col");
+        assert_eq!(arrow_schema.field(2).data_type(), &DataType::Utf8);
+        assert_eq!(arrow_schema.field(3).name(), "int_col");
+        assert_eq!(arrow_schema.field(3).data_type(), &DataType::Int64);
+        assert_eq!(arrow_schema.field(4).name(), "bool_col");
+        assert_eq!(arrow_schema.field(4).data_type(), &DataType::Boolean);
+        assert_eq!(arrow_schema.field(5).name(), "date_col");
         assert_eq!(
-            arrow_schema.field(4).data_type(),
+            arrow_schema.field(5).data_type(),
             &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
         );
-        assert_eq!(arrow_schema.field(5).name(), "event_time");
 
         assert_eq!(batch.num_rows(), 2);
 
@@ -478,24 +480,24 @@ mod tests {
         assert_eq!(key_array.value(0), "key1");
         assert_eq!(key_array.value(1), "key2");
 
-        let string_array = batch.column(1).as_string::<i32>();
+        let ts_array = batch.column(1).as_primitive::<TimestampMillisecondType>();
+        assert_eq!(ts_array.value(0), ts1);
+        assert_eq!(ts_array.value(1), ts2);
+
+        let string_array = batch.column(2).as_string::<i32>();
         assert_eq!(string_array.value(0), "string1");
         assert_eq!(string_array.value(1), "string2");
 
-        let int_array = batch.column(2).as_primitive::<Int64Type>();
+        let int_array = batch.column(3).as_primitive::<Int64Type>();
         assert_eq!(int_array.value(0), 100);
         assert_eq!(int_array.value(1), 200);
 
-        let bool_array = batch.column(3).as_boolean();
+        let bool_array = batch.column(4).as_boolean();
         assert!(bool_array.value(0));
         assert!(!bool_array.value(1));
 
-        let date_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
+        let date_array = batch.column(5).as_primitive::<TimestampMillisecondType>();
         assert_eq!(date_array.value(0), date1);
         assert_eq!(date_array.value(1), date2);
-
-        let ts_array = batch.column(5).as_primitive::<TimestampMillisecondType>();
-        assert_eq!(ts_array.value(0), ts1);
-        assert_eq!(ts_array.value(1), ts2);
     }
 }

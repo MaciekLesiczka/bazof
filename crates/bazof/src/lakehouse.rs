@@ -46,9 +46,7 @@ impl Lakehouse {
                 while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_string::<i32>();
 
-                    let ts_arr = batch
-                        .column(batch.num_columns() - 1)
-                        .as_primitive::<TimestampMillisecondType>();
+                    let ts_arr = batch.column(1).as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
                         let key_val = key_arr.value(row_idx);
@@ -70,7 +68,7 @@ impl Lakehouse {
                             for (i, item) in
                                 values.iter_mut().enumerate().take(schema.columns.len())
                             {
-                                item.append_value(batch.column(i + 1), row_idx);
+                                item.append_value(batch.column(i + 2), row_idx);
                             }
                             keys.append_value(key_val);
 
@@ -240,7 +238,7 @@ mod tests {
 
     fn bazof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
         let key_array = batch.column(0).as_string::<i32>();
-        let value_array = batch.column(1).as_string::<i32>();
+        let value_array = batch.column(2).as_string::<i32>();
         let mut result_map: HashMap<String, String> = HashMap::new();
         for i in 0..key_array.len() {
             result_map.insert(
@@ -255,11 +253,11 @@ mod tests {
         batch: &RecordBatch,
     ) -> HashMap<String, (String, i64, bool, i64)> {
         let key_array = batch.column(0).as_string::<i32>();
-        let value_array = batch.column(1).as_string::<i32>();
-        let value2_array = batch.column(2).as_primitive::<Int64Type>();
-        let value3_array = batch.column(3).as_boolean();
+        let value_array = batch.column(2).as_string::<i32>();
+        let value2_array = batch.column(3).as_primitive::<Int64Type>();
+        let value3_array = batch.column(4).as_boolean();
 
-        let value4_array = batch.column(4).as_primitive::<TimestampMillisecondType>();
+        let value4_array = batch.column(5).as_primitive::<TimestampMillisecondType>();
         let mut result_map: HashMap<String, (String, i64, bool, i64)> = HashMap::new();
         for i in 0..key_array.len() {
             result_map.insert(
