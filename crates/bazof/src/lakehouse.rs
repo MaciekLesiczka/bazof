@@ -1,7 +1,7 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
-use crate::schema::TableSchema;
+use crate::schema::{TableSchema, EVENT_TIME_NAME, KEY_NAME};
 use crate::table::Table;
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
@@ -10,7 +10,7 @@ use chrono::DateTime;
 use object_store::path::Path;
 use object_store::ObjectStore;
 use parquet::arrow::async_reader::ParquetObjectReader;
-use parquet::arrow::ParquetRecordBatchStreamBuilder;
+use parquet::arrow::{ParquetRecordBatchStreamBuilder, ProjectionMask};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -40,7 +40,15 @@ impl Lakehouse {
             let reader = ParquetObjectReader::new(self.store.clone(), meta);
             let builder = ParquetRecordBatchStreamBuilder::new(reader).await?;
 
-            let mut parquet_reader = builder.build()?;
+            let projection = {
+                let mut parquet_columns = vec![KEY_NAME, EVENT_TIME_NAME];
+                for col in &schema.columns {
+                    parquet_columns.push(col.name.as_str());
+                }
+                ProjectionMask::columns(builder.parquet_schema(), parquet_columns)
+            };
+
+            let mut parquet_reader = builder.with_projection(projection).build()?;
 
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {

@@ -7,7 +7,11 @@ use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
 use arrow_array::{ArrayRef, RecordBatch};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::sync::Arc;
+
+pub const KEY_NAME: &str = "key";
+pub const EVENT_TIME_NAME: &str = "event_time";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ColumnType {
@@ -138,6 +142,27 @@ impl TableSchema {
         )
     }
 
+    pub fn column_builders_projected(
+        &self,
+        projection: HashSet<String>,
+    ) -> (
+        StringBuilder,
+        TimestampMillisecondBuilder,
+        Vec<ColumnBuilder>,
+    ) {
+        let mut column_builders: Vec<ColumnBuilder> = vec![];
+        for column in &self.columns {
+            if projection.contains(&column.name) {
+                column_builders.push(ColumnBuilder::new(&column.data_type));
+            }
+        }
+        (
+            StringBuilder::new(),
+            TimestampMillisecondBuilder::new().with_timezone("UTC"),
+            column_builders,
+        )
+    }
+
     pub fn to_batch(
         &self,
         mut keys: StringBuilder,
@@ -161,10 +186,10 @@ impl TableSchema {
     fn to_arrow_schema(&self) -> Result<Schema, BazofError> {
         let mut fields = Vec::new();
 
-        fields.push(Field::new("key", DataType::Utf8, false));
+        fields.push(Field::new(KEY_NAME, DataType::Utf8, false));
 
         fields.push(Field::new(
-            "event_time",
+            EVENT_TIME_NAME,
             DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
             false,
         ));
