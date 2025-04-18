@@ -144,7 +144,7 @@ impl TableSchema {
 
     pub fn column_builders_projected(
         &self,
-        projection: HashSet<String>,
+        projection: &HashSet<String>,
     ) -> (
         StringBuilder,
         TimestampMillisecondBuilder,

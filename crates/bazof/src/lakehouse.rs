@@ -9,9 +9,9 @@ use arrow_array::RecordBatch;
 use chrono::DateTime;
 use object_store::path::Path;
 use object_store::ObjectStore;
-use parquet::arrow::async_reader::ParquetObjectReader;
+use parquet::arrow::async_reader::{ParquetObjectReader, ParquetRecordBatchStream};
 use parquet::arrow::{ParquetRecordBatchStreamBuilder, ProjectionMask};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct Lakehouse {
@@ -23,8 +23,16 @@ impl Lakehouse {
     pub fn new(path: Path, store: Arc<dyn ObjectStore>) -> Self {
         Lakehouse { path, store }
     }
-
     pub async fn scan(&self, table_name: &str, as_of: AsOf) -> Result<RecordBatch, BazofError> {
+        self.scan_projected(table_name, as_of, None).await
+    }
+
+    pub async fn scan_projected(
+        &self,
+        table_name: &str,
+        as_of: AsOf,
+        projection: Option<HashSet<String>>,
+    ) -> Result<RecordBatch, BazofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let snapshot = table.get_current_snapshot().await?;
         let files = snapshot.get_data_files(as_of);
@@ -32,23 +40,16 @@ impl Lakehouse {
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut timestamps, mut values) = schema.column_builders();
+        let (mut keys, mut timestamps, mut values) = if let Some(selected_columns) = &projection {
+            schema.column_builders_projected(&selected_columns)
+        } else {
+            schema.column_builders()
+        };
 
         for file in files {
-            let full_path = table.path.child(file);
-            let meta = self.store.head(&full_path).await?;
-            let reader = ParquetObjectReader::new(self.store.clone(), meta);
-            let builder = ParquetRecordBatchStreamBuilder::new(reader).await?;
-
-            let projection = {
-                let mut parquet_columns = vec![KEY_NAME, EVENT_TIME_NAME];
-                for col in &schema.columns {
-                    parquet_columns.push(col.name.as_str());
-                }
-                ProjectionMask::columns(builder.parquet_schema(), parquet_columns)
-            };
-
-            let mut parquet_reader = builder.with_projection(projection).build()?;
+            let mut parquet_reader = self
+                .build_parquet_reader(table.path.child(file), &schema, &projection)
+                .await?;
 
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
@@ -90,6 +91,32 @@ impl Lakehouse {
         schema.to_batch(keys, timestamps, values)
     }
 
+    async fn build_parquet_reader(
+        &self,
+        full_path: Path,
+        schema: &TableSchema,
+        projection: &Option<HashSet<String>>,
+    ) -> Result<ParquetRecordBatchStream<ParquetObjectReader>, BazofError> {
+        let meta = self.store.head(&full_path).await?;
+        let reader = ParquetObjectReader::new(self.store.clone(), meta);
+        let mut builder = ParquetRecordBatchStreamBuilder::new(reader).await?;
+
+        if let Some(projection) = projection {
+            let projection_mask = {
+                let mut parquet_columns = vec![KEY_NAME, EVENT_TIME_NAME];
+                for col in &schema.columns {
+                    if projection.contains(col.name.as_str()) {
+                        parquet_columns.push(col.name.as_str());
+                    }
+                }
+                ProjectionMask::columns(builder.parquet_schema(), parquet_columns)
+            };
+            builder = builder.with_projection(projection_mask);
+        }
+
+        Ok(builder.build()?)
+    }
+
     pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, BazofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         Ok(table.get_current_snapshot().await?.schema)
@@ -109,15 +136,7 @@ mod tests {
 
     #[tokio::test]
     async fn scan_table_with_one_segment_and_delta() -> Result<(), Box<dyn std::error::Error>> {
-        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        workspace_dir.pop();
-        workspace_dir.pop();
-
-        let test_data_path = workspace_dir.join("test-data");
-        let curr_dir = Path::from(test_data_path.to_str().unwrap());
-
-        let local_store = Arc::new(LocalFileSystem::new());
-        let lakehouse = Lakehouse::new(curr_dir, local_store);
+        let lakehouse = create_target();
 
         let result = lakehouse.scan("table0", Current).await?;
         let result = bazof_batch_to_hash_map(&result);
@@ -147,15 +166,7 @@ mod tests {
 
     #[tokio::test]
     async fn scan_table_with_delta_multiple_updates() -> Result<(), Box<dyn std::error::Error>> {
-        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        workspace_dir.pop();
-        workspace_dir.pop();
-
-        let test_data_path = workspace_dir.join("test-data");
-        let curr_dir = Path::from(test_data_path.to_str().unwrap());
-
-        let local_store = Arc::new(LocalFileSystem::new());
-        let lakehouse = Lakehouse::new(curr_dir, local_store);
+        let lakehouse = create_target();
 
         let result = lakehouse.scan("table1", Current).await?;
         let result = bazof_batch_to_hash_map(&result);
@@ -193,15 +204,7 @@ mod tests {
     #[tokio::test]
     async fn scan_table_with_one_segment_and_delta_with_multiple_columns(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        workspace_dir.pop();
-        workspace_dir.pop();
-
-        let test_data_path = workspace_dir.join("test-data");
-        let curr_dir = Path::from(test_data_path.to_str().unwrap());
-
-        let local_store = Arc::new(LocalFileSystem::new());
-        let lakehouse = Lakehouse::new(curr_dir, local_store);
+        let lakehouse = create_target();
 
         let result = lakehouse.scan("table2", Current).await?;
         let result = bazof_batch_to_hash_map_4columns(&result);
@@ -242,6 +245,18 @@ mod tests {
         assert_eq!(result, expected);
 
         Ok(())
+    }
+
+    fn create_target() -> Lakehouse{
+        let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        workspace_dir.pop();
+        workspace_dir.pop();
+
+        let test_data_path = workspace_dir.join("test-data");
+        let curr_dir = Path::from(test_data_path.to_str().unwrap());
+
+        let local_store = Arc::new(LocalFileSystem::new());
+        Lakehouse::new(curr_dir, local_store)
     }
 
     fn bazof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
