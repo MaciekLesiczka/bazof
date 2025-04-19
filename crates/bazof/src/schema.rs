@@ -169,8 +169,8 @@ impl TableSchema {
         mut timestamps: TimestampMillisecondBuilder,
         values: Vec<ColumnBuilder>,
     ) -> Result<RecordBatch, BazofError> {
-        let array_key = Arc::new(keys.finish());
         let mut columns: Vec<ArrayRef> = vec![];
+        let array_key = Arc::new(keys.finish());
         columns.push(array_key);
         columns.push(Arc::new(timestamps.finish()));
 
@@ -179,6 +179,31 @@ impl TableSchema {
         }
 
         let schema = Arc::new(self.to_arrow_schema()?);
+
+        Ok(RecordBatch::try_new(schema, columns)?)
+    }
+
+    pub fn to_batch_projected(
+        &self,
+        mut keys: StringBuilder,
+        mut timestamps: TimestampMillisecondBuilder,
+        values: Vec<ColumnBuilder>,
+        projection: &HashSet<String>,
+    ) -> Result<RecordBatch, BazofError> {
+        let mut columns: Vec<ArrayRef> = vec![];
+        if projection.contains(KEY_NAME) {
+            columns.push(Arc::new(keys.finish()));
+        }
+
+        if projection.contains(EVENT_TIME_NAME) {
+            columns.push(Arc::new(timestamps.finish()));
+        }
+
+        for mut builder in values {
+            columns.push(builder.finish());
+        }
+
+        let schema = Arc::new(self.to_arrow_schema_projected(projection)?);
 
         Ok(RecordBatch::try_new(schema, columns)?)
     }
@@ -205,6 +230,41 @@ impl TableSchema {
             };
 
             fields.push(Field::new(&col.name, arrow_type, col.nullable));
+        }
+
+        Ok(Schema::new(fields))
+    }
+
+    fn to_arrow_schema_projected(
+        &self,
+        projection: &HashSet<String>,
+    ) -> Result<Schema, BazofError> {
+        let mut fields = Vec::new();
+
+        if projection.contains(KEY_NAME) {
+            fields.push(Field::new(KEY_NAME, DataType::Utf8, false));
+        }
+
+        if projection.contains(EVENT_TIME_NAME) {
+            fields.push(Field::new(
+                EVENT_TIME_NAME,
+                DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
+                false,
+            ));
+        }
+
+        for col in &self.columns {
+            if projection.contains(&col.name) {
+                let arrow_type = match col.data_type {
+                    ColumnType::String => DataType::Utf8,
+                    ColumnType::Int => DataType::Int64,
+                    ColumnType::Boolean => DataType::Boolean,
+                    ColumnType::DateTime => {
+                        DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
+                    }
+                };
+                fields.push(Field::new(&col.name, arrow_type, col.nullable));
+            }
         }
 
         Ok(Schema::new(fields))

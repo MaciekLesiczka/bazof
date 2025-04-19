@@ -41,7 +41,7 @@ impl Lakehouse {
         let mut seen: HashMap<String, i64> = HashMap::new();
 
         let (mut keys, mut timestamps, mut values) = if let Some(selected_columns) = &projection {
-            schema.column_builders_projected(&selected_columns)
+            schema.column_builders_projected(selected_columns)
         } else {
             schema.column_builders()
         };
@@ -88,7 +88,11 @@ impl Lakehouse {
             }
         }
 
-        schema.to_batch(keys, timestamps, values)
+        if let Some(projected_columns) = projection {
+            schema.to_batch_projected(keys, timestamps, values, &projected_columns)
+        } else {
+            schema.to_batch(keys, timestamps, values)
+        }
     }
 
     async fn build_parquet_reader(
@@ -247,7 +251,47 @@ mod tests {
         Ok(())
     }
 
-    fn create_target() -> Lakehouse{
+    #[tokio::test]
+    async fn scan_table_with_one_projected_column() -> Result<(), Box<dyn std::error::Error>> {
+        let lakehouse = create_target();
+
+        let result = lakehouse
+            .scan_projected(
+                "table2",
+                Current,
+                Some(HashSet::from([
+                    "key".to_string(),
+                    "event_time".to_string(),
+                    "value1".to_string(),
+                ])),
+            )
+            .await?;
+        let result = bazof_batch_to_hash_map(&result);
+
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc2".to_string()),
+            (2.to_string(), "xyz2".to_string()),
+            (3.to_string(), "www2".to_string()),
+        ]);
+
+        assert_eq!(result, expected);
+
+        let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
+        let result = lakehouse.scan("table2", EventTime(past)).await?;
+
+        let result = bazof_batch_to_hash_map(&result);
+
+        let expected: HashMap<String, String> = HashMap::from([
+            (1.to_string(), "abc2".to_string()),
+            (2.to_string(), "xyz".to_string()),
+        ]);
+
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    fn create_target() -> Lakehouse {
         let mut workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         workspace_dir.pop();
         workspace_dir.pop();
