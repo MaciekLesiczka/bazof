@@ -6,6 +6,7 @@ use arrow_array::RecordBatch;
 use bazof::AsOf::{Current, EventTime};
 use bazof::BazofError;
 use bazof::Lakehouse;
+use bazof::Projection::All;
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use object_store::local::LocalFileSystem;
@@ -125,7 +126,7 @@ async fn scan_table(
     let local_store = Arc::new(LocalFileSystem::new());
     let lakehouse = Lakehouse::new(store_path, local_store);
 
-    let result = lakehouse.scan(&table_name, as_of).await?;
+    let result = lakehouse.scan(&table_name, as_of, All).await?;
 
     match as_of {
         Current => println!("Scanning table {} (current version):", table_name),

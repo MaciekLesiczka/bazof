@@ -1,4 +1,4 @@
-use crate::BazofError;
+use crate::{BazofError, Projection};
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow_array::builder::{
     BooleanBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder,
@@ -7,7 +7,6 @@ use arrow_array::cast::AsArray;
 use arrow_array::types::{Int64Type, TimestampMillisecondType};
 use arrow_array::{ArrayRef, RecordBatch};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 pub const KEY_NAME: &str = "key";
@@ -126,31 +125,14 @@ impl ColumnBuilder {
 impl TableSchema {
     pub fn column_builders(
         &self,
+        projection: &Projection,
     ) -> (
         StringBuilder,
         TimestampMillisecondBuilder,
         Vec<ColumnBuilder>,
     ) {
         let mut column_builders: Vec<ColumnBuilder> = vec![];
-        for column in &self.columns {
-            column_builders.push(ColumnBuilder::new(&column.data_type));
-        }
-        (
-            StringBuilder::new(),
-            TimestampMillisecondBuilder::new().with_timezone("UTC"),
-            column_builders,
-        )
-    }
 
-    pub fn column_builders_projected(
-        &self,
-        projection: &HashSet<String>,
-    ) -> (
-        StringBuilder,
-        TimestampMillisecondBuilder,
-        Vec<ColumnBuilder>,
-    ) {
-        let mut column_builders: Vec<ColumnBuilder> = vec![];
         for column in &self.columns {
             if projection.contains(&column.name) {
                 column_builders.push(ColumnBuilder::new(&column.data_type));
@@ -168,27 +150,7 @@ impl TableSchema {
         mut keys: StringBuilder,
         mut timestamps: TimestampMillisecondBuilder,
         values: Vec<ColumnBuilder>,
-    ) -> Result<RecordBatch, BazofError> {
-        let mut columns: Vec<ArrayRef> = vec![];
-        let array_key = Arc::new(keys.finish());
-        columns.push(array_key);
-        columns.push(Arc::new(timestamps.finish()));
-
-        for mut builder in values {
-            columns.push(builder.finish());
-        }
-
-        let schema = Arc::new(self.to_arrow_schema()?);
-
-        Ok(RecordBatch::try_new(schema, columns)?)
-    }
-
-    pub fn to_batch_projected(
-        &self,
-        mut keys: StringBuilder,
-        mut timestamps: TimestampMillisecondBuilder,
-        values: Vec<ColumnBuilder>,
-        projection: &HashSet<String>,
+        projection: &Projection,
     ) -> Result<RecordBatch, BazofError> {
         let mut columns: Vec<ArrayRef> = vec![];
         if projection.contains(KEY_NAME) {
@@ -203,42 +165,12 @@ impl TableSchema {
             columns.push(builder.finish());
         }
 
-        let schema = Arc::new(self.to_arrow_schema_projected(projection)?);
+        let schema = Arc::new(self.to_arrow_schema(projection)?);
 
         Ok(RecordBatch::try_new(schema, columns)?)
     }
 
-    fn to_arrow_schema(&self) -> Result<Schema, BazofError> {
-        let mut fields = Vec::new();
-
-        fields.push(Field::new(KEY_NAME, DataType::Utf8, false));
-
-        fields.push(Field::new(
-            EVENT_TIME_NAME,
-            DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
-            false,
-        ));
-
-        for col in &self.columns {
-            let arrow_type = match col.data_type {
-                ColumnType::String => DataType::Utf8,
-                ColumnType::Int => DataType::Int64,
-                ColumnType::Boolean => DataType::Boolean,
-                ColumnType::DateTime => {
-                    DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
-                }
-            };
-
-            fields.push(Field::new(&col.name, arrow_type, col.nullable));
-        }
-
-        Ok(Schema::new(fields))
-    }
-
-    fn to_arrow_schema_projected(
-        &self,
-        projection: &HashSet<String>,
-    ) -> Result<Schema, BazofError> {
+    fn to_arrow_schema(&self, projection: &Projection) -> Result<Schema, BazofError> {
         let mut fields = Vec::new();
 
         if projection.contains(KEY_NAME) {
@@ -274,8 +206,10 @@ impl TableSchema {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Projection::All;
     use arrow_array::{Array, BooleanArray, Int64Array, StringArray, TimestampMillisecondArray};
     use chrono::{TimeZone, Utc};
+
     #[test]
     fn test_deserialization() {
         let json_str = r#"{
@@ -331,7 +265,7 @@ mod tests {
   "#;
         let table_schema: TableSchema = serde_json::from_str(json_str).unwrap();
 
-        let arrow_schema = table_schema.to_arrow_schema().unwrap();
+        let arrow_schema = table_schema.to_arrow_schema(&All).unwrap();
 
         assert_eq!(
             arrow_schema,
@@ -498,7 +432,7 @@ mod tests {
             ],
         };
 
-        let (mut keys, mut timestamps, mut value_builders) = schema.column_builders();
+        let (mut keys, mut timestamps, mut value_builders) = schema.column_builders(&All);
 
         keys.append_value("key1");
         keys.append_value("key2");
@@ -538,7 +472,9 @@ mod tests {
         value_builders[3].append_value(&date_array, 0);
         value_builders[3].append_value(&date_array, 1);
 
-        let batch = schema.to_batch(keys, timestamps, value_builders).unwrap();
+        let batch = schema
+            .to_batch(keys, timestamps, value_builders, &All)
+            .unwrap();
 
         let arrow_schema = batch.schema();
         assert_eq!(arrow_schema.fields().len(), 6); // key + 4 columns + event_time

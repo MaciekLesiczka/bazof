@@ -5,6 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bazof::AsOf;
 use bazof::Lakehouse;
+use bazof::Projection::All;
 use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef, TimeUnit};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::Session;
@@ -259,7 +260,7 @@ impl ExecutionPlan for BazofExec {
         let schema = self.projected_schema.clone();
 
         let fut = async move {
-            let batch = lakehouse.scan(&table_name, as_of).await.map_err(|e| {
+            let batch = lakehouse.scan(&table_name, as_of, All).await.map_err(|e| {
                 DataFusionError::Execution(format!("Error scanning Bazof table: {}", e))
             })?;
 

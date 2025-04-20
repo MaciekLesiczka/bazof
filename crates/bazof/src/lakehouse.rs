@@ -1,6 +1,8 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::EventTime;
 use crate::errors::BazofError;
+use crate::projection::Projection;
+use crate::projection::Projection::Columns;
 use crate::schema::{TableSchema, EVENT_TIME_NAME, KEY_NAME};
 use crate::table::Table;
 use arrow_array::cast::AsArray;
@@ -11,7 +13,7 @@ use object_store::path::Path;
 use object_store::ObjectStore;
 use parquet::arrow::async_reader::{ParquetObjectReader, ParquetRecordBatchStream};
 use parquet::arrow::{ParquetRecordBatchStreamBuilder, ProjectionMask};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct Lakehouse {
@@ -23,15 +25,12 @@ impl Lakehouse {
     pub fn new(path: Path, store: Arc<dyn ObjectStore>) -> Self {
         Lakehouse { path, store }
     }
-    pub async fn scan(&self, table_name: &str, as_of: AsOf) -> Result<RecordBatch, BazofError> {
-        self.scan_projected(table_name, as_of, None).await
-    }
 
-    pub async fn scan_projected(
+    pub async fn scan(
         &self,
         table_name: &str,
         as_of: AsOf,
-        projection: Option<HashSet<String>>,
+        projection: Projection,
     ) -> Result<RecordBatch, BazofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let snapshot = table.get_current_snapshot().await?;
@@ -40,11 +39,7 @@ impl Lakehouse {
 
         let mut seen: HashMap<String, i64> = HashMap::new();
 
-        let (mut keys, mut timestamps, mut values) = if let Some(selected_columns) = &projection {
-            schema.column_builders_projected(selected_columns)
-        } else {
-            schema.column_builders()
-        };
+        let (mut keys, mut timestamps, mut values) = schema.column_builders(&projection);
 
         for file in files {
             let mut parquet_reader = self
@@ -87,24 +82,20 @@ impl Lakehouse {
             }
         }
 
-        if let Some(projected_columns) = projection {
-            schema.to_batch_projected(keys, timestamps, values, &projected_columns)
-        } else {
-            schema.to_batch(keys, timestamps, values)
-        }
+        schema.to_batch(keys, timestamps, values, &projection)
     }
 
     async fn build_parquet_reader(
         &self,
         full_path: Path,
         schema: &TableSchema,
-        projection: &Option<HashSet<String>>,
+        projection: &Projection,
     ) -> Result<ParquetRecordBatchStream<ParquetObjectReader>, BazofError> {
         let meta = self.store.head(&full_path).await?;
         let reader = ParquetObjectReader::new(self.store.clone(), meta);
         let mut builder = ParquetRecordBatchStreamBuilder::new(reader).await?;
 
-        if let Some(projection) = projection {
+        if let Columns(projection) = projection {
             let projection_mask = {
                 let mut parquet_columns = vec![KEY_NAME, EVENT_TIME_NAME];
                 for col in &schema.columns {
@@ -130,18 +121,20 @@ impl Lakehouse {
 mod tests {
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
+    use crate::projection::Projection::All;
     use arrow_array::types::Int64Type;
     use arrow_array::Array;
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
+    use std::collections::HashSet;
     use std::path::PathBuf;
 
     #[tokio::test]
     async fn scan_table_with_one_segment_and_delta() -> Result<(), Box<dyn std::error::Error>> {
         let lakehouse = create_target();
 
-        let result = lakehouse.scan("table0", Current).await?;
+        let result = lakehouse.scan("table0", Current, All).await?;
         let result = bazof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
@@ -153,7 +146,7 @@ mod tests {
         assert_eq!(result, expected);
 
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table0", EventTime(past)).await?;
+        let result = lakehouse.scan("table0", EventTime(past), All).await?;
 
         let result = bazof_batch_to_hash_map(&result);
 
@@ -171,7 +164,7 @@ mod tests {
     async fn scan_table_with_delta_multiple_updates() -> Result<(), Box<dyn std::error::Error>> {
         let lakehouse = create_target();
 
-        let result = lakehouse.scan("table1", Current).await?;
+        let result = lakehouse.scan("table1", Current, All).await?;
         let result = bazof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
@@ -182,7 +175,7 @@ mod tests {
         assert_eq!(result, expected);
 
         let past = Utc.with_ymd_and_hms(2024, 6, 1, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table1", EventTime(past)).await?;
+        let result = lakehouse.scan("table1", EventTime(past), All).await?;
         let result = bazof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
@@ -193,7 +186,7 @@ mod tests {
         assert_eq!(result, expected);
 
         let past = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table1", EventTime(past)).await?;
+        let result = lakehouse.scan("table1", EventTime(past), All).await?;
         let result = bazof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> =
@@ -209,7 +202,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let lakehouse = create_target();
 
-        let result = lakehouse.scan("table2", Current).await?;
+        let result = lakehouse.scan("table2", Current, All).await?;
         let result = bazof_batch_to_hash_map_4columns(&result);
 
         let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
@@ -230,7 +223,7 @@ mod tests {
         assert_eq!(result, expected);
 
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table2", EventTime(past)).await?;
+        let result = lakehouse.scan("table2", EventTime(past), All).await?;
 
         let result = bazof_batch_to_hash_map_4columns(&result);
 
@@ -256,10 +249,10 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse
-            .scan_projected(
+            .scan(
                 "table2",
                 Current,
-                Some(HashSet::from([
+                Columns(HashSet::from([
                     "key".to_string(),
                     "event_time".to_string(),
                     "value1".to_string(),
@@ -279,18 +272,6 @@ mod tests {
 
         assert_eq!(result, expected);
 
-        let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
-        let result = lakehouse.scan("table2", EventTime(past)).await?;
-
-        let result = bazof_batch_to_hash_map(&result);
-
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc2".to_string()),
-            (2.to_string(), "xyz".to_string()),
-        ]);
-
-        assert_eq!(result, expected);
-
         Ok(())
     }
 
@@ -299,7 +280,11 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse
-            .scan_projected("table2", Current, Some(HashSet::from(["key".to_string()])))
+            .scan(
+                "table2",
+                Current,
+                Columns(HashSet::from(["key".to_string()])),
+            )
             .await?;
 
         assert_eq!(result.columns().len(), 1);
@@ -318,10 +303,10 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse
-            .scan_projected(
+            .scan(
                 "table2",
                 Current,
-                Some(HashSet::from(["event_time".to_string()])),
+                Columns(HashSet::from(["event_time".to_string()])),
             )
             .await?;
 
@@ -341,10 +326,10 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse
-            .scan_projected(
+            .scan(
                 "table2",
                 Current,
-                Some(HashSet::from([
+                Columns(HashSet::from([
                     "event_time".to_string(),
                     "is_active".to_string(),
                     "created".to_string(),
@@ -372,10 +357,10 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse
-            .scan_projected(
+            .scan(
                 "table2",
                 Current,
-                Some(HashSet::from(["value1".to_string()])),
+                Columns(HashSet::from(["value1".to_string()])),
             )
             .await?;
 
