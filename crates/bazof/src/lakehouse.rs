@@ -54,7 +54,6 @@ impl Lakehouse {
             while let Some(mut batch_result) = parquet_reader.next_row_group().await? {
                 while let Some(Ok(batch)) = batch_result.next() {
                     let key_arr = batch.column(0).as_string::<i32>();
-
                     let ts_arr = batch.column(1).as_primitive::<TimestampMillisecondType>();
 
                     for row_idx in 0..batch.num_rows() {
@@ -252,7 +251,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn scan_table_with_one_projected_column() -> Result<(), Box<dyn std::error::Error>> {
+    async fn scan_table_with_one_projected_column_and_system_columns(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let lakehouse = create_target();
 
         let result = lakehouse
@@ -266,6 +266,9 @@ mod tests {
                 ])),
             )
             .await?;
+
+        assert_eq!(result.columns().len(), 3);
+
         let result = bazof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
@@ -286,6 +289,102 @@ mod tests {
             (2.to_string(), "xyz".to_string()),
         ]);
 
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scan_table_with_projected_key_only() -> Result<(), Box<dyn std::error::Error>> {
+        let lakehouse = create_target();
+
+        let result = lakehouse
+            .scan_projected("table2", Current, Some(HashSet::from(["key".to_string()])))
+            .await?;
+
+        assert_eq!(result.columns().len(), 1);
+
+        let result = bazof_batch_to_hash_set_string(&result);
+
+        let expected: HashSet<String> =
+            HashSet::from([1.to_string(), 2.to_string(), 3.to_string()]);
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scan_table_with_projected_event_time_only() -> Result<(), Box<dyn std::error::Error>> {
+        let lakehouse = create_target();
+
+        let result = lakehouse
+            .scan_projected(
+                "table2",
+                Current,
+                Some(HashSet::from(["event_time".to_string()])),
+            )
+            .await?;
+
+        assert_eq!(result.columns().len(), 1);
+
+        let result = bazof_batch_to_hash_set_timestamp(&result);
+
+        let expected: HashSet<i64> = HashSet::from([1706745600000, 1710028800000, 1708387200000]);
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scan_table_with_projected_event_time_bool_ts() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let lakehouse = create_target();
+
+        let result = lakehouse
+            .scan_projected(
+                "table2",
+                Current,
+                Some(HashSet::from([
+                    "event_time".to_string(),
+                    "is_active".to_string(),
+                    "created".to_string(),
+                ])),
+            )
+            .await?;
+
+        assert_eq!(result.columns().len(), 3);
+
+        let result = bazof_batch_to_hash_set_ts_bool_ts(&result);
+
+        let expected: HashSet<(i64, bool, i64)> = HashSet::from([
+            (1708387200000, false, 1704067200000),
+            (1706745600000, true, 1704067200000),
+            (1710028800000, false, 1709251200000),
+        ]);
+        assert_eq!(result, expected);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scan_table_with_projected_one_value_column() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let lakehouse = create_target();
+
+        let result = lakehouse
+            .scan_projected(
+                "table2",
+                Current,
+                Some(HashSet::from(["value1".to_string()])),
+            )
+            .await?;
+
+        assert_eq!(result.columns().len(), 1);
+
+        let result = bazof_batch_to_hash_set_string(&result);
+
+        let expected: HashSet<String> =
+            HashSet::from(["abc2".to_string(), "xyz2".to_string(), "www2".to_string()]);
         assert_eq!(result, expected);
 
         Ok(())
@@ -314,6 +413,41 @@ mod tests {
             );
         }
         result_map
+    }
+
+    fn bazof_batch_to_hash_set_string(batch: &RecordBatch) -> HashSet<String> {
+        let column_values = batch.column(0).as_string::<i32>();
+
+        let mut result: HashSet<String> = HashSet::new();
+        for i in 0..column_values.len() {
+            result.insert(column_values.value(i).to_owned());
+        }
+        result
+    }
+
+    fn bazof_batch_to_hash_set_timestamp(batch: &RecordBatch) -> HashSet<i64> {
+        let column_values = batch.column(0).as_primitive::<TimestampMillisecondType>();
+
+        let mut result: HashSet<i64> = HashSet::new();
+        for i in 0..column_values.len() {
+            result.insert(column_values.value(i).to_owned());
+        }
+        result
+    }
+
+    fn bazof_batch_to_hash_set_ts_bool_ts(batch: &RecordBatch) -> HashSet<(i64, bool, i64)> {
+        let value0_array = batch.column(0).as_primitive::<TimestampMillisecondType>();
+        let value1_array = batch.column(1).as_boolean();
+        let value2_array = batch.column(2).as_primitive::<TimestampMillisecondType>();
+        let mut result: HashSet<(i64, bool, i64)> = HashSet::new();
+        for i in 0..value0_array.len() {
+            result.insert((
+                value0_array.value(i).to_owned(),
+                value1_array.value(i).to_owned(),
+                value2_array.value(i).to_owned(),
+            ));
+        }
+        result
     }
 
     fn bazof_batch_to_hash_map_4columns(
