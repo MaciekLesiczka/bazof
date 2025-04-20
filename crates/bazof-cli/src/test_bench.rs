@@ -4,6 +4,7 @@ use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
 use arrow_array::RecordBatch;
 use bazof::BazofError;
+use bazof::Projection::All;
 use bazof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
@@ -11,7 +12,7 @@ use std::collections::HashSet;
 use std::error::Error;
 
 pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box<dyn Error>> {
-    let (mut keys, mut timestamps, mut values) = schema.column_builders();
+    let (mut keys, mut timestamps, mut values) = schema.column_builders(&All);
 
     for line in csv.split('\n') {
         let parts: Vec<&str> = line.split(',').collect();
@@ -46,7 +47,7 @@ pub fn csv_to_arrow(csv: String, schema: TableSchema) -> Result<RecordBatch, Box
         }
     }
 
-    Ok(schema.to_batch(keys, timestamps, values)?)
+    Ok(schema.to_batch(keys, timestamps, values, &All)?)
 }
 
 fn _generate_random_batch(
@@ -65,7 +66,7 @@ fn _generate_random_batch(
         }],
     };
 
-    let (mut keys, mut timestamps, mut values) = key_value_schema.column_builders();
+    let (mut keys, mut timestamps, mut values) = key_value_schema.column_builders(&All);
 
     while keys.len() < num_rows {
         let key = rng.random_range(0..num_keys as i64);
@@ -78,7 +79,7 @@ fn _generate_random_batch(
         }
     }
 
-    let batch = key_value_schema.to_batch(keys, timestamps, values)?;
+    let batch = key_value_schema.to_batch(keys, timestamps, values, &All)?;
     _sort_batch_by_ts_desc(&batch)
 }
 
