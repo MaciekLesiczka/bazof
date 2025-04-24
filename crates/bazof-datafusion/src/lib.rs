@@ -3,10 +3,10 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bazof::AsOf;
 use bazof::Lakehouse;
 use bazof::Projection::All;
-use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef, TimeUnit};
+use bazof::{AsOf, BazofError};
+use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::Session;
 use datafusion::common::{DataFusionError, Result};
@@ -54,23 +54,20 @@ impl Debug for BazofTableProvider {
 }
 
 impl BazofTableProvider {
-    pub fn new(
+    pub async fn new(
         store_path: Path,
         store: Arc<dyn ObjectStore>,
         table_name: String,
         as_of: AsOf,
-    ) -> Result<Self> {
+    ) -> std::result::Result<Self, BazofError> {
         let lakehouse = Arc::new(Lakehouse::new(store_path, store));
 
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("key", DataType::Utf8, false),
-            Field::new("value", DataType::Utf8, false),
-            Field::new(
-                "event_time",
-                DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into())),
-                false,
-            ),
-        ]));
+        let schema = Arc::new(
+            lakehouse
+                .get_schema(&table_name)
+                .await?
+                .to_arrow_schema(&All)?,
+        );
 
         Ok(Self {
             lakehouse,
@@ -80,21 +77,21 @@ impl BazofTableProvider {
         })
     }
 
-    pub fn current(
+    pub async fn current(
         store_path: Path,
         store: Arc<dyn ObjectStore>,
         table_name: String,
-    ) -> Result<Self> {
-        Self::new(store_path, store, table_name, AsOf::Current)
+    ) -> std::result::Result<Self, BazofError> {
+        Self::new(store_path, store, table_name, AsOf::Current).await
     }
 
-    pub fn as_of(
+    pub async fn as_of(
         store_path: Path,
         store: Arc<dyn ObjectStore>,
         table_name: String,
         event_time: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Self> {
-        Self::new(store_path, store, table_name, AsOf::EventTime(event_time))
+    ) -> std::result::Result<Self, BazofError> {
+        Self::new(store_path, store, table_name, AsOf::EventTime(event_time)).await
     }
 }
 

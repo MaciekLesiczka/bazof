@@ -170,7 +170,7 @@ impl TableSchema {
         Ok(RecordBatch::try_new(schema, columns)?)
     }
 
-    fn to_arrow_schema(&self, projection: &Projection) -> Result<Schema, BazofError> {
+    pub fn to_arrow_schema(&self, projection: &Projection) -> Result<Schema, BazofError> {
         let mut fields = Vec::new();
 
         if projection.contains(KEY_NAME) {

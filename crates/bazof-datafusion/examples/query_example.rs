@@ -30,7 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         store_path.clone(),
         local_store.clone(),
         "ltm_revenue".to_string(),
-    )?;
+    )
+    .await?;
 
     ctx.register_table("ltm_revenue", Arc::new(provider))?;
 
@@ -45,7 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         local_store.clone(),
         "ltm_revenue".to_string(),
         event_time,
-    )?;
+    )
+    .await?;
 
     // Register the table with DataFusion
     ctx.register_table("ltm_revenue_jan17", Arc::new(provider))?;
