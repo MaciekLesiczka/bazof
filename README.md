@@ -107,8 +107,8 @@ Bazof is under development. The goal is to implement a data lakehouse with the f
  - [x] Multiple columns support
  - [x] Data Types columns support
  - [x] Projection pushdown
+ - [x] Projection pushdown in DataFusion table provider
  - [ ] DataFusion table provider with AS OF operator
- - [ ] Projection pushdown in DataFusion table provider
  - [ ] Single row, key-value writer
  - [ ] Document spec
  - [ ] Delta -> snapshot compaction

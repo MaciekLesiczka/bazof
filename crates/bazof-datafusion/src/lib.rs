@@ -1,10 +1,11 @@
 use std::any::Any;
+use std::collections::HashSet;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use bazof::Lakehouse;
-use bazof::Projection::All;
+use bazof::Projection::{All, Columns};
 use bazof::{AsOf, BazofError};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
@@ -133,7 +134,6 @@ pub struct BazofExec {
     table_name: String,
     as_of: AsOf,
     projected_schema: SchemaRef,
-    projection: Option<Vec<usize>>,
     cache: PlanProperties,
 }
 
@@ -142,7 +142,7 @@ impl Debug for BazofExec {
         f.debug_struct("BazofExec")
             .field("table_name", &self.table_name)
             .field("as_of", &self.as_of)
-            .field("projection", &self.projection)
+            .field("projected_schema", &self.projected_schema)
             .finish()
     }
 }
@@ -154,7 +154,6 @@ impl Clone for BazofExec {
             table_name: self.table_name.clone(),
             as_of: self.as_of,
             projected_schema: self.projected_schema.clone(),
-            projection: self.projection.clone(),
             cache: self.cache.clone(),
         }
     }
@@ -186,7 +185,6 @@ impl BazofExec {
             table_name,
             as_of,
             projected_schema,
-            projection,
             cache,
         }
     }
@@ -253,27 +251,22 @@ impl ExecutionPlan for BazofExec {
         let lakehouse = self.lakehouse.clone();
         let table_name = self.table_name.clone();
         let as_of = self.as_of;
-        let projection = self.projection.clone();
         let schema = self.projected_schema.clone();
 
+        let names: HashSet<String> = schema
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect();
+
         let fut = async move {
-            let batch = lakehouse.scan(&table_name, as_of, All).await.map_err(|e| {
-                DataFusionError::Execution(format!("Error scanning Bazof table: {}", e))
-            })?;
-
-            let projected_batch = match projection {
-                Some(indices) => {
-                    let projected_columns = indices
-                        .iter()
-                        .map(|&i| batch.column(i).clone())
-                        .collect::<Vec<_>>();
-
-                    RecordBatch::try_new(schema, projected_columns)?
-                }
-                None => RecordBatch::try_new(schema, batch.columns().to_vec())?,
-            };
-
-            Ok::<Vec<RecordBatch>, DataFusionError>(vec![projected_batch])
+            let batch = lakehouse
+                .scan(&table_name, as_of, Columns(names))
+                .await
+                .map_err(|e| {
+                    DataFusionError::Execution(format!("Error scanning Bazof table: {}", e))
+                })?;
+            Ok::<Vec<RecordBatch>, DataFusionError>(vec![batch])
         };
 
         let batches = futures::executor::block_on(fut)?;
