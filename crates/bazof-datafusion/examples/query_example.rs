@@ -1,10 +1,9 @@
-use std::collections::BTreeSet;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use bazof::AsOf::{Current, EventTime};
-use bazof::{AsOf, Table};
+use bazof::{AsOf};
 use bazof_datafusion::BazofTableProvider;
 use chrono::{DateTime, TimeZone, Utc};
 use datafusion::logical_expr::sqlparser::ast::Visitor;
@@ -32,9 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let local_store = Arc::new(LocalFileSystem::new());
 
-    let cfg = SessionConfig::new().set_str("datafusion.sql_parser.dialect", "MsSQL");
-
-    let ctx = SessionContext::new_with_config(cfg);
+    let ctx = SessionContext::new();
     //
     // println!("Querying Last 12 months sales for Apple and Google");
     // let provider = BazofTableProvider::current(
@@ -70,11 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
 
     //----
-    let mut stmt = ctx.state().sql_to_statement("SELECT key as symbol, value as revenue FROM ltm_revenue FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z' LIMIT 10", "mssql")?;
+    let mut stmt = ctx.state().sql_to_statement("SELECT key as symbol, value as revenue FROM ltm_revenue FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z' LIMIT 10", "snowflake")?;
 
     let tables = visit_statement(&mut stmt);
 
-    for (original_name, name, as_of) in tables {
+    for (original_name, name, as_of) in tables? {
         let table_ref = name.to_string();
         let provider = BazofTableProvider::new(
             store_path.clone(),
@@ -98,89 +95,96 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// Visit each expression after its children have been visited
-
-fn visit_statement(statement: &mut Statement) -> Vec<(ObjectName, ObjectName, AsOf)> {
+fn visit_statement(
+    statement: &mut Statement,
+) -> Result<Vec<(ObjectName, ObjectName, AsOf)>, Box<dyn std::error::Error>> {
     struct RewriteVersionIntoTableIdent {
         relations: Vec<(ObjectName, ObjectName, AsOf)>,
     }
     impl VisitorMut for RewriteVersionIntoTableIdent {
-        type Break = ();
+        type Break = Box<dyn std::error::Error>;
         fn post_visit_table_factor(
             &mut self,
             table_factor: &mut TableFactor,
         ) -> ControlFlow<Self::Break> {
-            if let TableFactor::Table { name, version, .. } = table_factor {
-                let original_name = name.clone();
-                let as_of = {
-                    if let Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
-                        Value::SingleQuotedString(str),
-                    ))) = version
-                    {
-                        let event_time = DateTime::parse_from_rfc3339(&str)
-                            .map(|dt| dt.with_timezone(&Utc))
-                            //TODO handle me!
-                            .unwrap();
-                        if let ObjectName(idents) = name {
-                            let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
-
-                            for i in 0..idents.len() - 1 {
-                                new_idents.push(idents[i].clone());
-                            }
-
-                            if let Some(last) = idents.last() {
-                                new_idents.push(Ident {
-                                    value: format!(
-                                        "{}__{}",
-                                        last.value,
-                                        event_time.timestamp_millis()
-                                    ),
-                                    quote_style: last.quote_style,
-                                    span: last.span.clone(),
-                                });
-                            }
-
-                            *name = ObjectName(new_idents);
-                        }
-                        EventTime(event_time)
-                    } else {
-                        Current
-                    }
-                };
-
-                self.relations.push((original_name, name.clone(), as_of));
+            match rewrite_and_extract_versioned_tables(table_factor) {
+                Ok(Some(table)) => {
+                    self.relations.push(table);
+                    ControlFlow::Continue(())
+                }
+                Err(e) => ControlFlow::Break(e),
+                _ => ControlFlow::Continue(()),
             }
-
-            ControlFlow::Continue(())
         }
+    }
+
+    fn rewrite_and_extract_versioned_tables(
+        table_factor: &mut TableFactor,
+    ) -> Result<Option<(ObjectName, ObjectName, AsOf)>, Box<dyn std::error::Error>> {
+        if let TableFactor::Table { name, version, .. } = table_factor {
+            let original_name = name.clone();
+            let as_of: Result<AsOf, Box<dyn std::error::Error>> = {
+                if let Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
+                    Value::SingleQuotedString(str),
+                ))) = version
+                {
+                    let event_time =
+                        DateTime::parse_from_rfc3339(&str).map(|dt| dt.with_timezone(&Utc))?;
+                    if let ObjectName(idents) = name {
+                        let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
+
+                        for i in 0..idents.len() - 1 {
+                            new_idents.push(idents[i].clone());
+                        }
+
+                        if let Some(last) = idents.last() {
+                            new_idents.push(Ident {
+                                value: format!("{}__{}", last.value, event_time.timestamp_millis()),
+                                quote_style: last.quote_style,
+                                span: last.span.clone(),
+                            });
+                        }
+
+                        *name = ObjectName(new_idents);
+                        *version = None;
+                    }
+                    Ok(EventTime(event_time))
+                } else {
+                    Ok(Current)
+                }
+            };
+
+            return Ok(Some((original_name, name.clone(), as_of?)));
+        }
+        Ok(None)
     }
 
     let mut visitor = RewriteVersionIntoTableIdent { relations: vec![] };
 
     match statement {
         Statement::Statement(s) => {
-            s.visit(&mut visitor);
+            if let ControlFlow::Break(err) = s.visit(&mut visitor) {
+                Err(err)
+            } else {
+                Ok(visitor.relations)
+            }
         }
-        _ => (),
+        _ => Ok(visitor.relations),
     }
-
-    visitor.relations
 }
 
 #[test]
 fn inserts_version_into_table_ident() {
-    let cfg = SessionConfig::new().set_str("datafusion.sql_parser.dialect", "mssql");
-
-    let ctx = SessionContext::new_with_config(cfg);
+    let ctx = SessionContext::new();
     let mut stmt = ctx
         .state()
         .sql_to_statement(
             "SELECT * FROM tbl FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z'",
-            "mssql",
+            "snowflake",
         )
         .unwrap();
 
-    let tables = visit_statement(&mut stmt);
+    let tables = visit_statement(&mut stmt).unwrap();
     assert_eq!(tables.len(), 1);
 
     assert_eq!(tables[0].0.to_string(), "tbl".to_string());
