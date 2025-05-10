@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .sql(
             "
     SELECT key as symbol, value as revenue
-      FROM ltm_revenue FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z'
+      FROM ltm_revenue AT('2019-01-17T00:00:00.000Z')
      WHERE key IN ('AAPL', 'GOOG')
      ORDER BY key",
         )
