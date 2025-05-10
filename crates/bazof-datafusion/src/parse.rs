@@ -2,8 +2,8 @@ use bazof::AsOf;
 use bazof::AsOf::{Current, EventTime};
 use chrono::{DateTime, Utc};
 use datafusion::logical_expr::sqlparser::ast::{
-    Expr, Ident, ObjectName, TableFactor, TableVersion, Value, VisitMut, VisitorMut,
-    Function, FunctionArg, FunctionArguments, FunctionArgExpr,
+    Expr, Function, FunctionArg, FunctionArgExpr, FunctionArguments, Ident, ObjectName,
+    TableFactor, TableVersion, Value, VisitMut, VisitorMut,
 };
 use datafusion::sql::parser::Statement;
 use std::ops::ControlFlow;
@@ -81,9 +81,9 @@ fn rewrite_and_extract_versioned_tables(
             } else if let Some(TableVersion::Function(Expr::Function(func))) = version {
                 if func.name.0.len() == 1 && func.name.0[0].value.to_uppercase() == "AT" {
                     let timestamp_value = extract_timestamp_from_at_function(func)?;
-                    let event_time =
-                        DateTime::parse_from_rfc3339(&timestamp_value).map(|dt| dt.with_timezone(&Utc))?;
-                    
+                    let event_time = DateTime::parse_from_rfc3339(&timestamp_value)
+                        .map(|dt| dt.with_timezone(&Utc))?;
+
                     let ObjectName(idents) = name;
                     let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
 
@@ -124,26 +124,43 @@ fn extract_timestamp_from_at_function(
         for arg in &list.args {
             match arg {
                 FunctionArg::Unnamed(expr) => {
-                    if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(timestamp))) = expr {
+                    if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                        timestamp,
+                    ))) = expr
+                    {
                         return Ok(timestamp.clone());
                     }
-                },
-                FunctionArg::Named { name, arg, operator: _ } => {
+                }
+                FunctionArg::Named {
+                    name,
+                    arg,
+                    operator: _,
+                } => {
                     if name.value.to_uppercase() == "TIMESTAMP" {
-                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(timestamp))) = arg {
+                        if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                            timestamp,
+                        ))) = arg
+                        {
                             return Ok(timestamp.clone());
                         }
                     }
-                },
-                FunctionArg::ExprNamed { name, arg, operator: _ } => {
+                }
+                FunctionArg::ExprNamed {
+                    name,
+                    arg,
+                    operator: _,
+                } => {
                     if let Expr::Identifier(ident) = name {
                         if ident.value.to_uppercase() == "TIMESTAMP" {
-                            if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(timestamp))) = arg {
+                            if let FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(
+                                timestamp,
+                            ))) = arg
+                            {
                                 return Ok(timestamp.clone());
                             }
                         }
                     }
-                },
+                }
             }
         }
     }
@@ -242,10 +259,7 @@ mod tests {
         let ctx = SessionContext::new();
         let mut stmt = ctx
             .state()
-            .sql_to_statement(
-                "SELECT * FROM tbl AT('not_a_date')",
-                "snowflake",
-            )
+            .sql_to_statement("SELECT * FROM tbl AT('not_a_date')", "snowflake")
             .unwrap();
 
         let result = rewrite_and_extract_tables(&mut stmt);
