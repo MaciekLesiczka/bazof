@@ -64,15 +64,13 @@ fn rewrite_and_extract_versioned_tables(
                 let ObjectName(idents) = name;
                 let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
 
-                for i in 0..idents.len() - 1 {
-                    new_idents.push(idents[i].clone());
-                }
+                new_idents.extend(idents.iter().take(idents.len() - 1).cloned());
 
                 if let Some(last) = idents.last() {
                     new_idents.push(Ident {
                         value: format!("{}__{}", last.value, event_time.timestamp_millis()),
                         quote_style: last.quote_style,
-                        span: last.span.clone(),
+                        span: last.span,
                     });
 
                     *name = ObjectName(new_idents);
@@ -115,7 +113,10 @@ mod tests {
 
         assert_eq!(tables[0].name.to_string(), "tbl".to_string());
 
-        assert_eq!(tables[0].versioned_name.to_string(), "tbl__1547683200000".to_string());
+        assert_eq!(
+            tables[0].versioned_name.to_string(),
+            "tbl__1547683200000".to_string()
+        );
 
         assert_eq!(
             tables[0].as_of,
