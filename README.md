@@ -51,25 +51,24 @@ The bazof-datafusion crate provides integration with Apache DataFusion, allowing
 ### Example
 
 ```rust
-use bazof_datafusion::BazofTableProvider;
-use datafusion::prelude::*;
+use bazof_datafusion::context::ExecutionContext;
 
 async fn query_bazof() -> Result<(), Box<dyn std::error::Error>> {
-    let ctx = SessionContext::new();
-    
-    let event_time = Utc.with_ymd_and_hms(2019, 1, 17, 0, 0, 0).unwrap();
-    
-    let provider = BazofTableProvider::as_of(
-        store_path.clone(), 
-        local_store.clone(), 
-        "ltm_revenue".to_string(),
-        event_time
-    )?;
-    
-    ctx.register_table("ltm_revenue_jan17", Arc::new(provider))?;
-    
-    let df = ctx.sql("SELECT key as symbol, value as revenue FROM ltm_revenue_jan17 WHERE key IN ('AAPL', 'GOOG') ORDER BY key").await?;
+    let ctx = ExecutionContext::new("/path/to/bazof");
+
+    let df = ctx
+        .sql(
+            "
+    SELECT symbol, revenue
+      FROM ltm_revenue AT('2019-01-17T00:00:00.000Z')
+     WHERE symbol IN ('AAPL', 'GOOG')
+     ORDER BY symbol",
+        )
+        .await?;
+
     df.show().await?;
+
+    Ok(())
 }
 ```
 
