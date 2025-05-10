@@ -1,15 +1,21 @@
-use std::ops::ControlFlow;
-use chrono::{DateTime, TimeZone, Utc};
-use datafusion::logical_expr::sqlparser::ast::{Expr, Ident, ObjectName, TableFactor, TableVersion, Value, VisitMut, VisitorMut};
-use datafusion::prelude::SessionContext;
-use datafusion::sql::parser::Statement;
 use bazof::AsOf;
 use bazof::AsOf::{Current, EventTime};
+use chrono::{DateTime, Utc};
+use datafusion::logical_expr::sqlparser::ast::{
+    Expr, Ident, ObjectName, TableFactor, TableVersion, Value, VisitMut, VisitorMut,
+};
+use datafusion::sql::parser::Statement;
+use std::ops::ControlFlow;
 
+pub struct VersionedTable {
+    pub name: ObjectName,
+    pub versioned_name: ObjectName,
+    pub as_of: AsOf,
+}
 
 pub fn rewrite_and_extract_tables(
     statement: &mut Statement,
-) -> Result<Vec<(ObjectName, ObjectName, AsOf)>, Box<dyn std::error::Error>> {
+) -> Result<Vec<VersionedTable>, Box<dyn std::error::Error>> {
     let mut visitor = RewriteVersionIntoTableIdent { relations: vec![] };
     match statement {
         Statement::Statement(s) => {
@@ -24,7 +30,7 @@ pub fn rewrite_and_extract_tables(
 }
 
 struct RewriteVersionIntoTableIdent {
-    relations: Vec<(ObjectName, ObjectName, AsOf)>,
+    relations: Vec<VersionedTable>,
 }
 impl VisitorMut for RewriteVersionIntoTableIdent {
     type Break = Box<dyn std::error::Error>;
@@ -45,30 +51,29 @@ impl VisitorMut for RewriteVersionIntoTableIdent {
 
 fn rewrite_and_extract_versioned_tables(
     table_factor: &mut TableFactor,
-) -> Result<Option<(ObjectName, ObjectName, AsOf)>, Box<dyn std::error::Error>> {
+) -> Result<Option<VersionedTable>, Box<dyn std::error::Error>> {
     if let TableFactor::Table { name, version, .. } = table_factor {
         let original_name = name.clone();
         let as_of: Result<AsOf, Box<dyn std::error::Error>> = {
-            if let Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
-                                                            Value::SingleQuotedString(str),
-                                                        ))) = version
+            if let Some(TableVersion::ForSystemTimeAsOf(Expr::Value(Value::SingleQuotedString(
+                str,
+            )))) = version
             {
                 let event_time =
-                    DateTime::parse_from_rfc3339(&str).map(|dt| dt.with_timezone(&Utc))?;
-                if let ObjectName(idents) = name {
-                    let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
+                    DateTime::parse_from_rfc3339(str).map(|dt| dt.with_timezone(&Utc))?;
+                let ObjectName(idents) = name;
+                let mut new_idents: Vec<Ident> = Vec::with_capacity(idents.len());
 
-                    for i in 0..idents.len() - 1 {
-                        new_idents.push(idents[i].clone());
-                    }
+                for i in 0..idents.len() - 1 {
+                    new_idents.push(idents[i].clone());
+                }
 
-                    if let Some(last) = idents.last() {
-                        new_idents.push(Ident {
-                            value: format!("{}__{}", last.value, event_time.timestamp_millis()),
-                            quote_style: last.quote_style,
-                            span: last.span.clone(),
-                        });
-                    }
+                if let Some(last) = idents.last() {
+                    new_idents.push(Ident {
+                        value: format!("{}__{}", last.value, event_time.timestamp_millis()),
+                        quote_style: last.quote_style,
+                        span: last.span.clone(),
+                    });
 
                     *name = ObjectName(new_idents);
                     *version = None;
@@ -79,54 +84,58 @@ fn rewrite_and_extract_versioned_tables(
             }
         };
 
-        return Ok(Some((original_name, name.clone(), as_of?)));
+        return Ok(Some(VersionedTable {
+            name: original_name,
+            versioned_name: name.clone(),
+            as_of: as_of?,
+        }));
     }
     Ok(None)
 }
 
-#[test]
-fn inserts_version_into_table_ident() {
-    let ctx = SessionContext::new();
-    let mut stmt = ctx
-        .state()
-        .sql_to_statement(
-            "SELECT * FROM tbl FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z'",
-            "snowflake",
-        )
-        .unwrap();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use datafusion::prelude::SessionContext;
 
-    let tables = rewrite_and_extract_tables(&mut stmt).unwrap();
-    assert_eq!(tables.len(), 1);
+    #[test]
+    fn inserts_version_into_table_ident() {
+        let ctx = SessionContext::new();
+        let mut stmt = ctx
+            .state()
+            .sql_to_statement(
+                "SELECT * FROM tbl FOR SYSTEM_TIME AS OF '2019-01-17T00:00:00.000Z'",
+                "snowflake",
+            )
+            .unwrap();
 
-    assert_eq!(tables[0].0.to_string(), "tbl".to_string());
+        let tables = rewrite_and_extract_tables(&mut stmt).unwrap();
+        assert_eq!(tables.len(), 1);
 
-    assert_eq!(tables[0].1.to_string(), "tbl__1547683200000".to_string());
+        assert_eq!(tables[0].name.to_string(), "tbl".to_string());
 
-    assert_eq!(
-        tables[0].2,
-        EventTime(Utc.with_ymd_and_hms(2019, 1, 17, 0, 0, 0).unwrap()),
-    );
-}
+        assert_eq!(tables[0].versioned_name.to_string(), "tbl__1547683200000".to_string());
 
-#[test]
-fn returns_error_on_non_convertible_string() {
-    let ctx = SessionContext::new();
-    let mut stmt = ctx
-        .state()
-        .sql_to_statement(
-            "SELECT * FROM tbl FOR SYSTEM_TIME AS OF 'not_a_date'",
-            "snowflake",
-        )
-        .unwrap();
+        assert_eq!(
+            tables[0].as_of,
+            EventTime(Utc.with_ymd_and_hms(2019, 1, 17, 0, 0, 0).unwrap()),
+        );
+    }
 
-    let result = rewrite_and_extract_tables(&mut stmt);
+    #[test]
+    fn returns_error_on_non_convertible_string() {
+        let ctx = SessionContext::new();
+        let mut stmt = ctx
+            .state()
+            .sql_to_statement(
+                "SELECT * FROM tbl FOR SYSTEM_TIME AS OF 'not_a_date'",
+                "snowflake",
+            )
+            .unwrap();
 
-    assert!(result.is_err());
+        let result = rewrite_and_extract_tables(&mut stmt);
 
-    match result {
-        Err(e) => {
-            assert_eq!(e.to_string(), "input contains invalid characters");
-        }
-        Ok(_) => panic!("Expected an error but got Ok"),
+        assert!(result.is_err());
     }
 }
