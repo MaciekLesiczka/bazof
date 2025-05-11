@@ -19,10 +19,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let df = ctx
         .sql(
             "
-    SELECT key as symbol, value as revenue
-      FROM ltm_revenue AT('2019-01-17T00:00:00.000Z')
-     WHERE key IN ('AAPL', 'GOOG')
-     ORDER BY key",
+    SELECT key as symbol, revenue, net_income
+      FROM financials
+        AT ('2019-01-17T00:00:00.000Z') -- as per Financial Quarter end date
+     WHERE industry IN ('Software')
+     ORDER BY revenue DESC
+     LIMIT 5;
+     ",
         )
         .await?;
 
