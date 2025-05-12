@@ -7,7 +7,26 @@
 
 Query tables in object storage as of event time.
 
-Bazof is a lakehouse format with time-travel capabilities.
+Bazof is a lakehouse format with time-travel capabilities that allows you to query data as it existed at any point in time, based on when events actually occurred rather than when they were recorded.
+
+## What Problem Does Bazof Solve?
+
+Traditional data lakehouse formats allow time travel based on when data was written (processing time). Bazof instead focuses on **event time** - the time when events actually occurred in the real world. This distinction is crucial for:
+
+- **Late-arriving data**: Process data that arrives out of order without rewriting history
+- **Consistent historical views**: Get consistent snapshots of data as it existed at specific points in time
+- **High cardinality datasets with frequent updates**: Efficiently handle use cases involving business processes (sales, support, project management, financial data) or slowly changing dimensions
+- **Point-in-time analysis**: Analyze the state of your data exactly as it was at any moment
+
+## Key Features
+
+- **Event time-based time travel**: Query data based on when events occurred, not when they were recorded
+- **Efficient storage of updates**: Preserves compacted snapshots of state to minimize storage and query overhead
+- **Hierarchical organization**: Uses segments and delta files to efficiently organize temporal data
+- **Tunable compaction policy**: Adjust based on your data distribution patterns
+- **SQL integration**: Query using DataFusion with familiar SQL syntax
+- **Integration with object storage**: Works with any object store (local, S3, etc.)
+
 
 ## Project Structure
 
@@ -61,7 +80,7 @@ async fn query_bazof() -> Result<(), Box<dyn std::error::Error>> {
             "
     SELECT key as symbol, revenue, net_income
       FROM financials
-        AT ('2019-01-17T00:00:00.000Z') --
+        AT ('2019-01-17T00:00:00.000Z')
      WHERE industry IN ('Software')
      ORDER BY revenue DESC
      LIMIT 5;
