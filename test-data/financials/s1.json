@@ -1,0 +1,1273 @@
+{
+  "schema": {
+    "columns": [
+      {
+        "name": "industry",
+        "data_type": "String",
+        "nullable": false
+      },
+      {
+        "name": "revenue",
+        "data_type": "Int",
+        "nullable": false
+      },
+      {
+        "name": "shares_diluted",
+        "data_type": "Int",
+        "nullable": false
+      },
+      {
+        "name": "net_income",
+        "data_type": "Int",
+        "nullable": false
+      }
+    ]
+  },
+  "segments": [
+    {
+      "id": "year_2000",
+      "start": "2000-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2000_q1",
+          "start": "2000-01-01T00:00:00.000Z",
+          "end": "2000-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2000_q1_delta.parquet",
+              "start": "2000-01-01T00:00:00.000Z",
+              "end": "2000-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2000_q2",
+          "start": "2000-04-01T00:00:00.000Z",
+          "end": "2000-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2000_q2_delta.parquet",
+              "start": "2000-04-01T00:00:00.000Z",
+              "end": "2000-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2000_q2_base.parquet"
+        },
+        {
+          "id": "year_2000_q3",
+          "start": "2000-07-01T00:00:00.000Z",
+          "end": "2000-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2000_q3_delta.parquet",
+              "start": "2000-07-01T00:00:00.000Z",
+              "end": "2000-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2000_q3_base.parquet"
+        },
+        {
+          "id": "year_2000_q4",
+          "start": "2000-10-01T00:00:00.000Z",
+          "end": "2000-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2000_q4_delta.parquet",
+              "start": "2000-10-01T00:00:00.000Z",
+              "end": "2000-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2000_q4_base.parquet"
+        }
+      ],
+      "end": "2000-12-31T23:59:59.999Z",
+      "file": "year_2000_base.parquet"
+    },
+    {
+      "id": "year_2001",
+      "start": "2001-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2001_q1",
+          "start": "2001-01-01T00:00:00.000Z",
+          "end": "2001-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2001_q1_delta.parquet",
+              "start": "2001-01-01T00:00:00.000Z",
+              "end": "2001-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2001_q2",
+          "start": "2001-04-01T00:00:00.000Z",
+          "end": "2001-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2001_q2_delta.parquet",
+              "start": "2001-04-01T00:00:00.000Z",
+              "end": "2001-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2001_q2_base.parquet"
+        },
+        {
+          "id": "year_2001_q3",
+          "start": "2001-07-01T00:00:00.000Z",
+          "end": "2001-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2001_q3_delta.parquet",
+              "start": "2001-07-01T00:00:00.000Z",
+              "end": "2001-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2001_q3_base.parquet"
+        },
+        {
+          "id": "year_2001_q4",
+          "start": "2001-10-01T00:00:00.000Z",
+          "end": "2001-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2001_q4_delta.parquet",
+              "start": "2001-10-01T00:00:00.000Z",
+              "end": "2001-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2001_q4_base.parquet"
+        }
+      ],
+      "end": "2001-12-31T23:59:59.999Z",
+      "file": "year_2001_base.parquet"
+    },
+    {
+      "id": "year_2002",
+      "start": "2002-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2002_q1",
+          "start": "2002-01-01T00:00:00.000Z",
+          "end": "2002-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2002_q1_delta.parquet",
+              "start": "2002-01-01T00:00:00.000Z",
+              "end": "2002-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2002_q2",
+          "start": "2002-04-01T00:00:00.000Z",
+          "end": "2002-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2002_q2_delta.parquet",
+              "start": "2002-04-01T00:00:00.000Z",
+              "end": "2002-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2002_q2_base.parquet"
+        },
+        {
+          "id": "year_2002_q3",
+          "start": "2002-07-01T00:00:00.000Z",
+          "end": "2002-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2002_q3_delta.parquet",
+              "start": "2002-07-01T00:00:00.000Z",
+              "end": "2002-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2002_q3_base.parquet"
+        },
+        {
+          "id": "year_2002_q4",
+          "start": "2002-10-01T00:00:00.000Z",
+          "end": "2002-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2002_q4_delta.parquet",
+              "start": "2002-10-01T00:00:00.000Z",
+              "end": "2002-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2002_q4_base.parquet"
+        }
+      ],
+      "end": "2002-12-31T23:59:59.999Z",
+      "file": "year_2002_base.parquet"
+    },
+    {
+      "id": "year_2003",
+      "start": "2003-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2003_q1",
+          "start": "2003-01-01T00:00:00.000Z",
+          "end": "2003-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2003_q1_delta.parquet",
+              "start": "2003-01-01T00:00:00.000Z",
+              "end": "2003-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2003_q2",
+          "start": "2003-04-01T00:00:00.000Z",
+          "end": "2003-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2003_q2_delta.parquet",
+              "start": "2003-04-01T00:00:00.000Z",
+              "end": "2003-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2003_q2_base.parquet"
+        },
+        {
+          "id": "year_2003_q3",
+          "start": "2003-07-01T00:00:00.000Z",
+          "end": "2003-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2003_q3_delta.parquet",
+              "start": "2003-07-01T00:00:00.000Z",
+              "end": "2003-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2003_q3_base.parquet"
+        },
+        {
+          "id": "year_2003_q4",
+          "start": "2003-10-01T00:00:00.000Z",
+          "end": "2003-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2003_q4_delta.parquet",
+              "start": "2003-10-01T00:00:00.000Z",
+              "end": "2003-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2003_q4_base.parquet"
+        }
+      ],
+      "end": "2003-12-31T23:59:59.999Z",
+      "file": "year_2003_base.parquet"
+    },
+    {
+      "id": "year_2004",
+      "start": "2004-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2004_q1",
+          "start": "2004-01-01T00:00:00.000Z",
+          "end": "2004-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2004_q1_delta.parquet",
+              "start": "2004-01-01T00:00:00.000Z",
+              "end": "2004-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2004_q2",
+          "start": "2004-04-01T00:00:00.000Z",
+          "end": "2004-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2004_q2_delta.parquet",
+              "start": "2004-04-01T00:00:00.000Z",
+              "end": "2004-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2004_q2_base.parquet"
+        },
+        {
+          "id": "year_2004_q3",
+          "start": "2004-07-01T00:00:00.000Z",
+          "end": "2004-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2004_q3_delta.parquet",
+              "start": "2004-07-01T00:00:00.000Z",
+              "end": "2004-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2004_q3_base.parquet"
+        },
+        {
+          "id": "year_2004_q4",
+          "start": "2004-10-01T00:00:00.000Z",
+          "end": "2004-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2004_q4_delta.parquet",
+              "start": "2004-10-01T00:00:00.000Z",
+              "end": "2004-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2004_q4_base.parquet"
+        }
+      ],
+      "end": "2004-12-31T23:59:59.999Z",
+      "file": "year_2004_base.parquet"
+    },
+    {
+      "id": "year_2005",
+      "start": "2005-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2005_q1",
+          "start": "2005-01-01T00:00:00.000Z",
+          "end": "2005-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2005_q1_delta.parquet",
+              "start": "2005-01-01T00:00:00.000Z",
+              "end": "2005-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2005_q2",
+          "start": "2005-04-01T00:00:00.000Z",
+          "end": "2005-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2005_q2_delta.parquet",
+              "start": "2005-04-01T00:00:00.000Z",
+              "end": "2005-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2005_q2_base.parquet"
+        },
+        {
+          "id": "year_2005_q3",
+          "start": "2005-07-01T00:00:00.000Z",
+          "end": "2005-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2005_q3_delta.parquet",
+              "start": "2005-07-01T00:00:00.000Z",
+              "end": "2005-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2005_q3_base.parquet"
+        },
+        {
+          "id": "year_2005_q4",
+          "start": "2005-10-01T00:00:00.000Z",
+          "end": "2005-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2005_q4_delta.parquet",
+              "start": "2005-10-01T00:00:00.000Z",
+              "end": "2005-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2005_q4_base.parquet"
+        }
+      ],
+      "end": "2005-12-31T23:59:59.999Z",
+      "file": "year_2005_base.parquet"
+    },
+    {
+      "id": "year_2006",
+      "start": "2006-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2006_q1",
+          "start": "2006-01-01T00:00:00.000Z",
+          "end": "2006-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2006_q1_delta.parquet",
+              "start": "2006-01-01T00:00:00.000Z",
+              "end": "2006-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2006_q2",
+          "start": "2006-04-01T00:00:00.000Z",
+          "end": "2006-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2006_q2_delta.parquet",
+              "start": "2006-04-01T00:00:00.000Z",
+              "end": "2006-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2006_q2_base.parquet"
+        },
+        {
+          "id": "year_2006_q3",
+          "start": "2006-07-01T00:00:00.000Z",
+          "end": "2006-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2006_q3_delta.parquet",
+              "start": "2006-07-01T00:00:00.000Z",
+              "end": "2006-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2006_q3_base.parquet"
+        },
+        {
+          "id": "year_2006_q4",
+          "start": "2006-10-01T00:00:00.000Z",
+          "end": "2006-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2006_q4_delta.parquet",
+              "start": "2006-10-01T00:00:00.000Z",
+              "end": "2006-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2006_q4_base.parquet"
+        }
+      ],
+      "end": "2006-12-31T23:59:59.999Z",
+      "file": "year_2006_base.parquet"
+    },
+    {
+      "id": "year_2007",
+      "start": "2007-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2007_q1",
+          "start": "2007-01-01T00:00:00.000Z",
+          "end": "2007-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2007_q1_delta.parquet",
+              "start": "2007-01-01T00:00:00.000Z",
+              "end": "2007-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2007_q2",
+          "start": "2007-04-01T00:00:00.000Z",
+          "end": "2007-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2007_q2_delta.parquet",
+              "start": "2007-04-01T00:00:00.000Z",
+              "end": "2007-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2007_q2_base.parquet"
+        },
+        {
+          "id": "year_2007_q3",
+          "start": "2007-07-01T00:00:00.000Z",
+          "end": "2007-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2007_q3_delta.parquet",
+              "start": "2007-07-01T00:00:00.000Z",
+              "end": "2007-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2007_q3_base.parquet"
+        },
+        {
+          "id": "year_2007_q4",
+          "start": "2007-10-01T00:00:00.000Z",
+          "end": "2007-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2007_q4_delta.parquet",
+              "start": "2007-10-01T00:00:00.000Z",
+              "end": "2007-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2007_q4_base.parquet"
+        }
+      ],
+      "end": "2007-12-31T23:59:59.999Z",
+      "file": "year_2007_base.parquet"
+    },
+    {
+      "id": "year_2008",
+      "start": "2008-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2008_q1",
+          "start": "2008-01-01T00:00:00.000Z",
+          "end": "2008-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2008_q1_delta.parquet",
+              "start": "2008-01-01T00:00:00.000Z",
+              "end": "2008-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2008_q2",
+          "start": "2008-04-01T00:00:00.000Z",
+          "end": "2008-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2008_q2_delta.parquet",
+              "start": "2008-04-01T00:00:00.000Z",
+              "end": "2008-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2008_q2_base.parquet"
+        },
+        {
+          "id": "year_2008_q3",
+          "start": "2008-07-01T00:00:00.000Z",
+          "end": "2008-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2008_q3_delta.parquet",
+              "start": "2008-07-01T00:00:00.000Z",
+              "end": "2008-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2008_q3_base.parquet"
+        },
+        {
+          "id": "year_2008_q4",
+          "start": "2008-10-01T00:00:00.000Z",
+          "end": "2008-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2008_q4_delta.parquet",
+              "start": "2008-10-01T00:00:00.000Z",
+              "end": "2008-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2008_q4_base.parquet"
+        }
+      ],
+      "end": "2008-12-31T23:59:59.999Z",
+      "file": "year_2008_base.parquet"
+    },
+    {
+      "id": "year_2009",
+      "start": "2009-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2009_q1",
+          "start": "2009-01-01T00:00:00.000Z",
+          "end": "2009-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2009_q1_delta.parquet",
+              "start": "2009-01-01T00:00:00.000Z",
+              "end": "2009-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2009_q2",
+          "start": "2009-04-01T00:00:00.000Z",
+          "end": "2009-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2009_q2_delta.parquet",
+              "start": "2009-04-01T00:00:00.000Z",
+              "end": "2009-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2009_q2_base.parquet"
+        },
+        {
+          "id": "year_2009_q3",
+          "start": "2009-07-01T00:00:00.000Z",
+          "end": "2009-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2009_q3_delta.parquet",
+              "start": "2009-07-01T00:00:00.000Z",
+              "end": "2009-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2009_q3_base.parquet"
+        },
+        {
+          "id": "year_2009_q4",
+          "start": "2009-10-01T00:00:00.000Z",
+          "end": "2009-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2009_q4_delta.parquet",
+              "start": "2009-10-01T00:00:00.000Z",
+              "end": "2009-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2009_q4_base.parquet"
+        }
+      ],
+      "end": "2009-12-31T23:59:59.999Z",
+      "file": "year_2009_base.parquet"
+    },
+    {
+      "id": "year_2010",
+      "start": "2010-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2010_q1",
+          "start": "2010-01-01T00:00:00.000Z",
+          "end": "2010-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2010_q1_delta.parquet",
+              "start": "2010-01-01T00:00:00.000Z",
+              "end": "2010-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2010_q2",
+          "start": "2010-04-01T00:00:00.000Z",
+          "end": "2010-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2010_q2_delta.parquet",
+              "start": "2010-04-01T00:00:00.000Z",
+              "end": "2010-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2010_q2_base.parquet"
+        },
+        {
+          "id": "year_2010_q3",
+          "start": "2010-07-01T00:00:00.000Z",
+          "end": "2010-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2010_q3_delta.parquet",
+              "start": "2010-07-01T00:00:00.000Z",
+              "end": "2010-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2010_q3_base.parquet"
+        },
+        {
+          "id": "year_2010_q4",
+          "start": "2010-10-01T00:00:00.000Z",
+          "end": "2010-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2010_q4_delta.parquet",
+              "start": "2010-10-01T00:00:00.000Z",
+              "end": "2010-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2010_q4_base.parquet"
+        }
+      ],
+      "end": "2010-12-31T23:59:59.999Z",
+      "file": "year_2010_base.parquet"
+    },
+    {
+      "id": "year_2011",
+      "start": "2011-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2011_q1",
+          "start": "2011-01-01T00:00:00.000Z",
+          "end": "2011-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2011_q1_delta.parquet",
+              "start": "2011-01-01T00:00:00.000Z",
+              "end": "2011-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2011_q2",
+          "start": "2011-04-01T00:00:00.000Z",
+          "end": "2011-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2011_q2_delta.parquet",
+              "start": "2011-04-01T00:00:00.000Z",
+              "end": "2011-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2011_q2_base.parquet"
+        },
+        {
+          "id": "year_2011_q3",
+          "start": "2011-07-01T00:00:00.000Z",
+          "end": "2011-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2011_q3_delta.parquet",
+              "start": "2011-07-01T00:00:00.000Z",
+              "end": "2011-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2011_q3_base.parquet"
+        },
+        {
+          "id": "year_2011_q4",
+          "start": "2011-10-01T00:00:00.000Z",
+          "end": "2011-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2011_q4_delta.parquet",
+              "start": "2011-10-01T00:00:00.000Z",
+              "end": "2011-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2011_q4_base.parquet"
+        }
+      ],
+      "end": "2011-12-31T23:59:59.999Z",
+      "file": "year_2011_base.parquet"
+    },
+    {
+      "id": "year_2012",
+      "start": "2012-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2012_q1",
+          "start": "2012-01-01T00:00:00.000Z",
+          "end": "2012-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2012_q1_delta.parquet",
+              "start": "2012-01-01T00:00:00.000Z",
+              "end": "2012-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2012_q2",
+          "start": "2012-04-01T00:00:00.000Z",
+          "end": "2012-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2012_q2_delta.parquet",
+              "start": "2012-04-01T00:00:00.000Z",
+              "end": "2012-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2012_q2_base.parquet"
+        },
+        {
+          "id": "year_2012_q3",
+          "start": "2012-07-01T00:00:00.000Z",
+          "end": "2012-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2012_q3_delta.parquet",
+              "start": "2012-07-01T00:00:00.000Z",
+              "end": "2012-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2012_q3_base.parquet"
+        },
+        {
+          "id": "year_2012_q4",
+          "start": "2012-10-01T00:00:00.000Z",
+          "end": "2012-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2012_q4_delta.parquet",
+              "start": "2012-10-01T00:00:00.000Z",
+              "end": "2012-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2012_q4_base.parquet"
+        }
+      ],
+      "end": "2012-12-31T23:59:59.999Z",
+      "file": "year_2012_base.parquet"
+    },
+    {
+      "id": "year_2013",
+      "start": "2013-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2013_q1",
+          "start": "2013-01-01T00:00:00.000Z",
+          "end": "2013-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2013_q1_delta.parquet",
+              "start": "2013-01-01T00:00:00.000Z",
+              "end": "2013-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2013_q2",
+          "start": "2013-04-01T00:00:00.000Z",
+          "end": "2013-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2013_q2_delta.parquet",
+              "start": "2013-04-01T00:00:00.000Z",
+              "end": "2013-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2013_q2_base.parquet"
+        },
+        {
+          "id": "year_2013_q3",
+          "start": "2013-07-01T00:00:00.000Z",
+          "end": "2013-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2013_q3_delta.parquet",
+              "start": "2013-07-01T00:00:00.000Z",
+              "end": "2013-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2013_q3_base.parquet"
+        },
+        {
+          "id": "year_2013_q4",
+          "start": "2013-10-01T00:00:00.000Z",
+          "end": "2013-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2013_q4_delta.parquet",
+              "start": "2013-10-01T00:00:00.000Z",
+              "end": "2013-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2013_q4_base.parquet"
+        }
+      ],
+      "end": "2013-12-31T23:59:59.999Z",
+      "file": "year_2013_base.parquet"
+    },
+    {
+      "id": "year_2014",
+      "start": "2014-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2014_q1",
+          "start": "2014-01-01T00:00:00.000Z",
+          "end": "2014-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2014_q1_delta.parquet",
+              "start": "2014-01-01T00:00:00.000Z",
+              "end": "2014-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2014_q2",
+          "start": "2014-04-01T00:00:00.000Z",
+          "end": "2014-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2014_q2_delta.parquet",
+              "start": "2014-04-01T00:00:00.000Z",
+              "end": "2014-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2014_q2_base.parquet"
+        },
+        {
+          "id": "year_2014_q3",
+          "start": "2014-07-01T00:00:00.000Z",
+          "end": "2014-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2014_q3_delta.parquet",
+              "start": "2014-07-01T00:00:00.000Z",
+              "end": "2014-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2014_q3_base.parquet"
+        },
+        {
+          "id": "year_2014_q4",
+          "start": "2014-10-01T00:00:00.000Z",
+          "end": "2014-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2014_q4_delta.parquet",
+              "start": "2014-10-01T00:00:00.000Z",
+              "end": "2014-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2014_q4_base.parquet"
+        }
+      ],
+      "end": "2014-12-31T23:59:59.999Z",
+      "file": "year_2014_base.parquet"
+    },
+    {
+      "id": "year_2015",
+      "start": "2015-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2015_q1",
+          "start": "2015-01-01T00:00:00.000Z",
+          "end": "2015-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2015_q1_delta.parquet",
+              "start": "2015-01-01T00:00:00.000Z",
+              "end": "2015-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2015_q2",
+          "start": "2015-04-01T00:00:00.000Z",
+          "end": "2015-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2015_q2_delta.parquet",
+              "start": "2015-04-01T00:00:00.000Z",
+              "end": "2015-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2015_q2_base.parquet"
+        },
+        {
+          "id": "year_2015_q3",
+          "start": "2015-07-01T00:00:00.000Z",
+          "end": "2015-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2015_q3_delta.parquet",
+              "start": "2015-07-01T00:00:00.000Z",
+              "end": "2015-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2015_q3_base.parquet"
+        },
+        {
+          "id": "year_2015_q4",
+          "start": "2015-10-01T00:00:00.000Z",
+          "end": "2015-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2015_q4_delta.parquet",
+              "start": "2015-10-01T00:00:00.000Z",
+              "end": "2015-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2015_q4_base.parquet"
+        }
+      ],
+      "end": "2015-12-31T23:59:59.999Z",
+      "file": "year_2015_base.parquet"
+    },
+    {
+      "id": "year_2016",
+      "start": "2016-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2016_q1",
+          "start": "2016-01-01T00:00:00.000Z",
+          "end": "2016-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2016_q1_delta.parquet",
+              "start": "2016-01-01T00:00:00.000Z",
+              "end": "2016-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2016_q2",
+          "start": "2016-04-01T00:00:00.000Z",
+          "end": "2016-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2016_q2_delta.parquet",
+              "start": "2016-04-01T00:00:00.000Z",
+              "end": "2016-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2016_q2_base.parquet"
+        },
+        {
+          "id": "year_2016_q3",
+          "start": "2016-07-01T00:00:00.000Z",
+          "end": "2016-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2016_q3_delta.parquet",
+              "start": "2016-07-01T00:00:00.000Z",
+              "end": "2016-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2016_q3_base.parquet"
+        },
+        {
+          "id": "year_2016_q4",
+          "start": "2016-10-01T00:00:00.000Z",
+          "end": "2016-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2016_q4_delta.parquet",
+              "start": "2016-10-01T00:00:00.000Z",
+              "end": "2016-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2016_q4_base.parquet"
+        }
+      ],
+      "end": "2016-12-31T23:59:59.999Z",
+      "file": "year_2016_base.parquet"
+    },
+    {
+      "id": "year_2017",
+      "start": "2017-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2017_q1",
+          "start": "2017-01-01T00:00:00.000Z",
+          "end": "2017-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2017_q1_delta.parquet",
+              "start": "2017-01-01T00:00:00.000Z",
+              "end": "2017-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2017_q2",
+          "start": "2017-04-01T00:00:00.000Z",
+          "end": "2017-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2017_q2_delta.parquet",
+              "start": "2017-04-01T00:00:00.000Z",
+              "end": "2017-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2017_q2_base.parquet"
+        },
+        {
+          "id": "year_2017_q3",
+          "start": "2017-07-01T00:00:00.000Z",
+          "end": "2017-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2017_q3_delta.parquet",
+              "start": "2017-07-01T00:00:00.000Z",
+              "end": "2017-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2017_q3_base.parquet"
+        },
+        {
+          "id": "year_2017_q4",
+          "start": "2017-10-01T00:00:00.000Z",
+          "end": "2017-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2017_q4_delta.parquet",
+              "start": "2017-10-01T00:00:00.000Z",
+              "end": "2017-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2017_q4_base.parquet"
+        }
+      ],
+      "end": "2017-12-31T23:59:59.999Z",
+      "file": "year_2017_base.parquet"
+    },
+    {
+      "id": "year_2018",
+      "start": "2018-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2018_q1",
+          "start": "2018-01-01T00:00:00.000Z",
+          "end": "2018-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2018_q1_delta.parquet",
+              "start": "2018-01-01T00:00:00.000Z",
+              "end": "2018-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2018_q2",
+          "start": "2018-04-01T00:00:00.000Z",
+          "end": "2018-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2018_q2_delta.parquet",
+              "start": "2018-04-01T00:00:00.000Z",
+              "end": "2018-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2018_q2_base.parquet"
+        },
+        {
+          "id": "year_2018_q3",
+          "start": "2018-07-01T00:00:00.000Z",
+          "end": "2018-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2018_q3_delta.parquet",
+              "start": "2018-07-01T00:00:00.000Z",
+              "end": "2018-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2018_q3_base.parquet"
+        },
+        {
+          "id": "year_2018_q4",
+          "start": "2018-10-01T00:00:00.000Z",
+          "end": "2018-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2018_q4_delta.parquet",
+              "start": "2018-10-01T00:00:00.000Z",
+              "end": "2018-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2018_q4_base.parquet"
+        }
+      ],
+      "end": "2018-12-31T23:59:59.999Z",
+      "file": "year_2018_base.parquet"
+    },
+    {
+      "id": "year_2019",
+      "start": "2019-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2019_q1",
+          "start": "2019-01-01T00:00:00.000Z",
+          "end": "2019-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2019_q1_delta.parquet",
+              "start": "2019-01-01T00:00:00.000Z",
+              "end": "2019-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2019_q2",
+          "start": "2019-04-01T00:00:00.000Z",
+          "end": "2019-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2019_q2_delta.parquet",
+              "start": "2019-04-01T00:00:00.000Z",
+              "end": "2019-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2019_q2_base.parquet"
+        },
+        {
+          "id": "year_2019_q3",
+          "start": "2019-07-01T00:00:00.000Z",
+          "end": "2019-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2019_q3_delta.parquet",
+              "start": "2019-07-01T00:00:00.000Z",
+              "end": "2019-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2019_q3_base.parquet"
+        },
+        {
+          "id": "year_2019_q4",
+          "start": "2019-10-01T00:00:00.000Z",
+          "end": "2019-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2019_q4_delta.parquet",
+              "start": "2019-10-01T00:00:00.000Z",
+              "end": "2019-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2019_q4_base.parquet"
+        }
+      ],
+      "end": "2019-12-31T23:59:59.999Z",
+      "file": "year_2019_base.parquet"
+    },
+    {
+      "id": "year_2020",
+      "start": "2020-01-01T00:00:00.000Z",
+      "segments": [
+        {
+          "id": "year_2020_q1",
+          "start": "2020-01-01T00:00:00.000Z",
+          "end": "2020-03-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2020_q1_delta.parquet",
+              "start": "2020-01-01T00:00:00.000Z",
+              "end": "2020-03-31T23:59:59.999Z"
+            }
+          ]
+        },
+        {
+          "id": "year_2020_q2",
+          "start": "2020-04-01T00:00:00.000Z",
+          "end": "2020-06-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2020_q2_delta.parquet",
+              "start": "2020-04-01T00:00:00.000Z",
+              "end": "2020-06-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2020_q2_base.parquet"
+        },
+        {
+          "id": "year_2020_q3",
+          "start": "2020-07-01T00:00:00.000Z",
+          "end": "2020-09-30T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2020_q3_delta.parquet",
+              "start": "2020-07-01T00:00:00.000Z",
+              "end": "2020-09-30T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2020_q3_base.parquet"
+        },
+        {
+          "id": "year_2020_q4",
+          "start": "2020-10-01T00:00:00.000Z",
+          "end": "2020-12-31T23:59:59.999Z",
+          "delta": [
+            {
+              "file": "year_2020_q4_delta.parquet",
+              "start": "2020-10-01T00:00:00.000Z",
+              "end": "2020-12-31T23:59:59.999Z"
+            }
+          ],
+          "file": "year_2020_q4_base.parquet"
+        }
+      ],
+      "end": "2020-12-31T23:59:59.999Z",
+      "file": "year_2020_base.parquet"
+    },
+    {
+      "id": "year_2021",
+      "start": "2021-01-01T00:00:00.000Z",
+      "segments": [],
+      "file": "year_2021_base.parquet"
+    }
+  ]
+}
