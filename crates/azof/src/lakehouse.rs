@@ -1,6 +1,6 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::EventTime;
-use crate::errors::BazofError;
+use crate::errors::AzofError;
 use crate::projection::Projection;
 use crate::projection::Projection::Columns;
 use crate::schema::{TableSchema, EVENT_TIME_NAME, KEY_NAME};
@@ -31,7 +31,7 @@ impl Lakehouse {
         table_name: &str,
         as_of: AsOf,
         projection: Projection,
-    ) -> Result<RecordBatch, BazofError> {
+    ) -> Result<RecordBatch, AzofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         let snapshot = table.get_current_snapshot().await?;
         let files = snapshot.get_data_files(as_of);
@@ -60,7 +60,7 @@ impl Lakehouse {
                             let ts_val = ts_arr.value(row_idx);
 
                             let ts = DateTime::from_timestamp_millis(ts_val)
-                                .ok_or(BazofError::NoneValue)?;
+                                .ok_or(AzofError::NoneValue)?;
                             if let EventTime(event_time) = as_of {
                                 if ts > event_time {
                                     continue;
@@ -90,7 +90,7 @@ impl Lakehouse {
         full_path: Path,
         schema: &TableSchema,
         projection: &Projection,
-    ) -> Result<ParquetRecordBatchStream<ParquetObjectReader>, BazofError> {
+    ) -> Result<ParquetRecordBatchStream<ParquetObjectReader>, AzofError> {
         let meta = self.store.head(&full_path).await?;
         let reader = ParquetObjectReader::new(self.store.clone(), meta);
         let mut builder = ParquetRecordBatchStreamBuilder::new(reader).await?;
@@ -111,7 +111,7 @@ impl Lakehouse {
         Ok(builder.build()?)
     }
 
-    pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, BazofError> {
+    pub async fn get_schema(&self, table_name: &str) -> Result<TableSchema, AzofError> {
         let table = Table::new(self.path.child(table_name), self.store.clone());
         Ok(table.get_current_snapshot().await?.schema)
     }
@@ -135,7 +135,7 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table0", Current, All).await?;
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
             (1.to_string(), "abc2".to_string()),
@@ -148,7 +148,7 @@ mod tests {
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table0", EventTime(past), All).await?;
 
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
             (1.to_string(), "abc2".to_string()),
@@ -165,7 +165,7 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table1", Current, All).await?;
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
             (1.to_string(), "abc4".to_string()),
@@ -176,7 +176,7 @@ mod tests {
 
         let past = Utc.with_ymd_and_hms(2024, 6, 1, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table1", EventTime(past), All).await?;
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
             (1.to_string(), "abc3".to_string()),
@@ -187,7 +187,7 @@ mod tests {
 
         let past = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table1", EventTime(past), All).await?;
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> =
             HashMap::from([(1.to_string(), "abc2".to_string())]);
@@ -203,7 +203,7 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table2", Current, All).await?;
-        let result = bazof_batch_to_hash_map_4columns(&result);
+        let result = azof_batch_to_hash_map_4columns(&result);
 
         let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
             (
@@ -225,7 +225,7 @@ mod tests {
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table2", EventTime(past), All).await?;
 
-        let result = bazof_batch_to_hash_map_4columns(&result);
+        let result = azof_batch_to_hash_map_4columns(&result);
 
         let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
             (
@@ -262,7 +262,7 @@ mod tests {
 
         assert_eq!(result.columns().len(), 3);
 
-        let result = bazof_batch_to_hash_map(&result);
+        let result = azof_batch_to_hash_map(&result);
 
         let expected: HashMap<String, String> = HashMap::from([
             (1.to_string(), "abc2".to_string()),
@@ -289,7 +289,7 @@ mod tests {
 
         assert_eq!(result.columns().len(), 1);
 
-        let result = bazof_batch_to_hash_set_string(&result);
+        let result = azof_batch_to_hash_set_string(&result);
 
         let expected: HashSet<String> =
             HashSet::from([1.to_string(), 2.to_string(), 3.to_string()]);
@@ -312,7 +312,7 @@ mod tests {
 
         assert_eq!(result.columns().len(), 1);
 
-        let result = bazof_batch_to_hash_set_timestamp(&result);
+        let result = azof_batch_to_hash_set_timestamp(&result);
 
         let expected: HashSet<i64> = HashSet::from([1706745600000, 1710028800000, 1708387200000]);
         assert_eq!(result, expected);
@@ -339,7 +339,7 @@ mod tests {
 
         assert_eq!(result.columns().len(), 3);
 
-        let result = bazof_batch_to_hash_set_ts_bool_ts(&result);
+        let result = azof_batch_to_hash_set_ts_bool_ts(&result);
 
         let expected: HashSet<(i64, bool, i64)> = HashSet::from([
             (1708387200000, false, 1704067200000),
@@ -366,7 +366,7 @@ mod tests {
 
         assert_eq!(result.columns().len(), 1);
 
-        let result = bazof_batch_to_hash_set_string(&result);
+        let result = azof_batch_to_hash_set_string(&result);
 
         let expected: HashSet<String> =
             HashSet::from(["abc2".to_string(), "xyz2".to_string(), "www2".to_string()]);
@@ -387,7 +387,7 @@ mod tests {
         Lakehouse::new(curr_dir, local_store)
     }
 
-    fn bazof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
+    fn azof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
         let key_array = batch.column(0).as_string::<i32>();
         let value_array = batch.column(2).as_string::<i32>();
         let mut result_map: HashMap<String, String> = HashMap::new();
@@ -400,7 +400,7 @@ mod tests {
         result_map
     }
 
-    fn bazof_batch_to_hash_set_string(batch: &RecordBatch) -> HashSet<String> {
+    fn azof_batch_to_hash_set_string(batch: &RecordBatch) -> HashSet<String> {
         let column_values = batch.column(0).as_string::<i32>();
 
         let mut result: HashSet<String> = HashSet::new();
@@ -410,7 +410,7 @@ mod tests {
         result
     }
 
-    fn bazof_batch_to_hash_set_timestamp(batch: &RecordBatch) -> HashSet<i64> {
+    fn azof_batch_to_hash_set_timestamp(batch: &RecordBatch) -> HashSet<i64> {
         let column_values = batch.column(0).as_primitive::<TimestampMillisecondType>();
 
         let mut result: HashSet<i64> = HashSet::new();
@@ -420,7 +420,7 @@ mod tests {
         result
     }
 
-    fn bazof_batch_to_hash_set_ts_bool_ts(batch: &RecordBatch) -> HashSet<(i64, bool, i64)> {
+    fn azof_batch_to_hash_set_ts_bool_ts(batch: &RecordBatch) -> HashSet<(i64, bool, i64)> {
         let value0_array = batch.column(0).as_primitive::<TimestampMillisecondType>();
         let value1_array = batch.column(1).as_boolean();
         let value2_array = batch.column(2).as_primitive::<TimestampMillisecondType>();
@@ -435,7 +435,7 @@ mod tests {
         result
     }
 
-    fn bazof_batch_to_hash_map_4columns(
+    fn azof_batch_to_hash_map_4columns(
         batch: &RecordBatch,
     ) -> HashMap<String, (String, i64, bool, i64)> {
         let key_array = batch.column(0).as_string::<i32>();

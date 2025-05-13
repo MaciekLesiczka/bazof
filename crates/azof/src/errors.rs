@@ -4,7 +4,7 @@ use std::string::FromUtf8Error;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum BazofError {
+pub enum AzofError {
     #[error("IO error: {0}")]
     Arrow(#[from] ArrowError),
     #[error("Parsing error: {0}")]

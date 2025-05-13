@@ -1,19 +1,19 @@
 [package]
-name = "bazof-cli"
+name = "azof-cli"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "CLI utility for bazof lakehouse format"
+description = "CLI utility for azof lakehouse format"
 repository.workspace = true
 license.workspace = true
 readme = "../../README.md"
 
 [[bin]]
-name = "bazof-cli"
+name = "azof-cli"
 path = "src/main.rs"
 
 [dependencies]
-bazof = { path = "../bazof" }
+azof = { path = "../azof" }
 tokio = { version = "1", features = ["full"] }
 arrow-array = "54.2.0"
 arrow = "54.2.0"

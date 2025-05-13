@@ -1,4 +1,4 @@
-use crate::errors::BazofError;
+use crate::errors::AzofError;
 use crate::metadata::Snapshot;
 use object_store::{path::Path, ObjectStore};
 use std::sync::Arc;
@@ -13,17 +13,17 @@ impl Table {
         Table { path, store }
     }
 
-    pub async fn get_current_snapshot(&self) -> Result<Snapshot, BazofError> {
+    pub async fn get_current_snapshot(&self) -> Result<Snapshot, AzofError> {
         let snapshot_id = self.read_version().await?;
         self.get_snapshot(&snapshot_id).await
     }
 
-    pub async fn get_snapshot(&self, snapshot_id: &str) -> Result<Snapshot, BazofError> {
+    pub async fn get_snapshot(&self, snapshot_id: &str) -> Result<Snapshot, AzofError> {
         let snapshot_file = format!("s{}.json", snapshot_id);
         self.read_snapshot(&snapshot_file).await
     }
 
-    async fn read_snapshot(&self, file_name: &str) -> Result<Snapshot, BazofError> {
+    async fn read_snapshot(&self, file_name: &str) -> Result<Snapshot, AzofError> {
         let snapshot_path = self.path.child(file_name);
         let file = self.store.get(&snapshot_path).await?;
         let reader = file.bytes().await?;
@@ -32,7 +32,7 @@ impl Table {
         Snapshot::deserialize(&result)
     }
 
-    async fn read_version(&self) -> Result<String, BazofError> {
+    async fn read_version(&self) -> Result<String, AzofError> {
         let snapshot_path = self.path.child("version.txt");
         let file = self.store.get(&snapshot_path).await?;
         let reader = file.bytes().await?;
@@ -54,7 +54,7 @@ mod tests {
     #[tokio::test]
     async fn read_files_from_snapshot() -> Result<(), Box<dyn std::error::Error>> {
         let store = Arc::new(InMemory::new());
-        let table = Table::new(Path::from("bazof/table0"), store.clone());
+        let table = Table::new(Path::from("azof/table0"), store.clone());
 
         put_table_metadata(
             &store,
@@ -143,7 +143,7 @@ mod tests {
     }
 
     async fn put_table_metadata(store: &Arc<InMemory>, file_name: &str, data: String) {
-        let snapshot_path = Path::from("bazof/table0").child(file_name);
+        let snapshot_path = Path::from("azof/table0").child(file_name);
         let put_payload = PutPayload::from(data.as_bytes().to_vec());
         let _ = store.put(&snapshot_path, put_payload).await;
     }

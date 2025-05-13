@@ -1,12 +1,12 @@
-# How Bazof Works
+# How Azof Works
 
-Bazof is a lakehouse format that enables event time-travel queries on data stored in object storage. This document explains the core concepts and architecture behind Bazof.
+Azof is a lakehouse format that enables event time-travel queries on data stored in object storage. This document explains the core concepts and architecture behind Azof.
 
 ## Core Concepts
 
 ### Event Time Travel
 
-Unlike traditional time travel in data lakes that allows querying data based on when it was written (system time), Bazof focuses on **event time** - the time when events actually occurred. This allows for consistent historical views even when data arrives late.
+Unlike traditional time travel in data lakes that allows querying data based on when it was written (system time), Azof focuses on **event time** - the time when events actually occurred. This allows for consistent historical views even when data arrives late.
 
 ### Base Files
 
@@ -16,7 +16,7 @@ Unlike traditional time travel in data lakes that allows querying data based on 
 
 ### Segments and Delta Files
 
-Bazof organizes data through a hierarchical structure of segments and delta files:
+Azof organizes data through a hierarchical structure of segments and delta files:
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
@@ -73,7 +73,7 @@ Bazof organizes data through a hierarchical structure of segments and delta file
 
 When you query data "as of" a specific event time:
 
-1. Bazof reads the current version file (`version.txt`) to determine the current snapshot
+1. Azof reads the current version file (`version.txt`) to determine the current snapshot
 2. It loads the snapshot file (e.g., `s1.json`) which defines the segment tree
 3. It traverses the segment tree, collecting relevant files:
    - Includes base files from segments covering the requested time period (each containing the state at their start time)
@@ -125,7 +125,7 @@ When you query data "as of" a specific event time:
 ## File Structure Example
 
 ```
-bazof/
+azof/
 ├── table0/
 │   ├── version.txt           # Current version pointer "1"
 │   ├── s1.json               # Snapshot definition

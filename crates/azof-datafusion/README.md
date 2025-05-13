@@ -1,17 +1,17 @@
-# Bazof DataFusion Integration
+# Azof DataFusion Integration
 
-This crate provides integration between Bazof lakehouse format and Apache DataFusion.
+This crate provides integration between Azof lakehouse format and Apache DataFusion.
 
 ## Features
 
-- Register Bazof tables in a DataFusion context
+- Register Azof tables in a DataFusion context
 - Query tables using SQL
 - Support for time-travel queries
 
 ## Usage
 
 ```rust
-use bazof_datafusion::BazofTableProvider;
+use azof_datafusion::AzofTableProvider;
 use datafusion::prelude::*;
 use object_store::local::LocalFileSystem;
 use object_store::path::Path;
@@ -26,7 +26,7 @@ async fn query_example() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = SessionContext::new();
     
     // Create a table provider for the current version
-    let provider = BazofTableProvider::current(
+    let provider = AzofTableProvider::current(
         store_path.clone(), 
         store.clone(), 
         "my_table".to_string()
@@ -51,7 +51,7 @@ To query a table as of a specific time:
 use chrono::{TimeZone, Utc};
 
 let event_time = Utc.with_ymd_and_hms(2024, 2, 15, 0, 0, 0).unwrap();
-let provider = BazofTableProvider::as_of(
+let provider = AzofTableProvider::as_of(
     store_path, 
     store, 
     "my_table".to_string(),
@@ -62,5 +62,5 @@ let provider = BazofTableProvider::as_of(
 ## Running the Examples
 
 ```bash
-cargo run --example query_example -p bazof-datafusion
+cargo run --example query_example -p azof-datafusion
 ```

@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/bazof",
-    "crates/bazof-cli",
-    "crates/bazof-datafusion",
+    "crates/azof",
+    "crates/azof-cli",
+    "crates/azof-datafusion",
 ]
 
 [workspace.package]
@@ -11,4 +11,4 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Maciej Lesiczka <maciej.lesiczka@gmail.com>"]
 license = "Apache-2.0"
-repository = "https://github.com/MaciekLesiczka/bazof"
+repository = "https://github.com/MaciekLesiczka/azof"

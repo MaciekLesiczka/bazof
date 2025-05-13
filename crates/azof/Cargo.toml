@@ -1,5 +1,5 @@
 [package]
-name = "bazof"
+name = "azof"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

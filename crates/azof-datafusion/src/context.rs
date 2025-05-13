@@ -1,5 +1,5 @@
 use crate::parse::rewrite_and_extract_tables;
-use crate::BazofTableProvider;
+use crate::AzofTableProvider;
 use datafusion::dataframe::DataFrame;
 use datafusion::prelude::SessionContext;
 use object_store::local::LocalFileSystem;
@@ -29,7 +29,7 @@ impl ExecutionContext {
 
         for versioned_table in tables {
             let table_ref = versioned_table.versioned_name.to_string();
-            let provider = BazofTableProvider::new(
+            let provider = AzofTableProvider::new(
                 self.store_path.clone(),
                 self.store.clone(),
                 versioned_table.name.to_string(),

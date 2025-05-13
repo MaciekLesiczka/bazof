@@ -7,7 +7,7 @@ mod schema;
 mod table;
 
 pub use as_of::AsOf;
-pub use errors::BazofError;
+pub use errors::AzofError;
 pub use lakehouse::Lakehouse;
 pub use projection::Projection;
 pub use schema::{ColumnDef, ColumnType, TableSchema};

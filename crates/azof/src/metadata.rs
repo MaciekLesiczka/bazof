@@ -1,7 +1,7 @@
 use crate::as_of::AsOf;
 use crate::as_of::AsOf::Current;
 use crate::as_of::AsOf::EventTime;
-use crate::errors::BazofError;
+use crate::errors::AzofError;
 use crate::schema::TableSchema;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn deserialize(json_string: &str) -> Result<Snapshot, BazofError> {
+    pub fn deserialize(json_string: &str) -> Result<Snapshot, AzofError> {
         Ok(serde_json::from_str::<Snapshot>(json_string)?)
     }
 

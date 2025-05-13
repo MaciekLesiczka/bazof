@@ -1,15 +1,15 @@
 [package]
-name = "bazof-datafusion"
+name = "azof-datafusion"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "DataFusion integration for bazof lakehouse format"
+description = "DataFusion integration for azof lakehouse format"
 repository.workspace = true
 license.workspace = true
 readme = "../../README.md"
 
 [dependencies]
-bazof = { path = "../bazof" }
+azof = { path = "../azof" }
 datafusion = "46.0.0"
 arrow-array = "54.2.0"
 arrow = "54.2.0"

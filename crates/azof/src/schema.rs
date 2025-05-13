@@ -1,4 +1,4 @@
-use crate::{BazofError, Projection};
+use crate::{AzofError, Projection};
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow_array::builder::{
     BooleanBuilder, Int64Builder, StringBuilder, TimestampMillisecondBuilder,
@@ -151,7 +151,7 @@ impl TableSchema {
         mut timestamps: TimestampMillisecondBuilder,
         values: Vec<ColumnBuilder>,
         projection: &Projection,
-    ) -> Result<RecordBatch, BazofError> {
+    ) -> Result<RecordBatch, AzofError> {
         let mut columns: Vec<ArrayRef> = vec![];
         if projection.contains(KEY_NAME) {
             columns.push(Arc::new(keys.finish()));
@@ -170,7 +170,7 @@ impl TableSchema {
         Ok(RecordBatch::try_new(schema, columns)?)
     }
 
-    pub fn to_arrow_schema(&self, projection: &Projection) -> Result<Schema, BazofError> {
+    pub fn to_arrow_schema(&self, projection: &Projection) -> Result<Schema, AzofError> {
         let mut fields = Vec::new();
 
         if projection.contains(KEY_NAME) {

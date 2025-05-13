@@ -1,17 +1,21 @@
-# Bazof
+# Azof
 
-[![Rust CI](https://github.com/MaciekLesiczka/bazof/actions/workflows/rust.yml/badge.svg)](https://github.com/MaciekLesiczka/bazof/actions/workflows/rust.yml)
-[![Crates.io](https://img.shields.io/crates/v/bazof.svg)](https://crates.io/crates/bazof)
-[![Documentation](https://docs.rs/bazof/badge.svg)](https://docs.rs/bazof)
-[![License](https://img.shields.io/crates/l/bazof.svg)](LICENSE)
+[![Rust CI](https://github.com/MaciekLesiczka/azof/actions/workflows/rust.yml/badge.svg)](https://github.com/MaciekLesiczka/azof/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/azof.svg)](https://crates.io/crates/azof)
+[![Documentation](https://docs.rs/azof/badge.svg)](https://docs.rs/azof)
+[![License](https://img.shields.io/crates/l/azof.svg)](LICENSE)
 
 Query tables in object storage as of event time.
 
-Bazof is a lakehouse format with time-travel capabilities that allows you to query data as it existed at any point in time, based on when events actually occurred rather than when they were recorded.
+Azof is a lakehouse format with time-travel capabilities that allows you to query data as it existed at any point in time, based on when events actually occurred rather than when they were recorded.
 
-## What Problem Does Bazof Solve?
 
-Traditional data lakehouse formats allow time travel based on when data was written (processing time). Bazof instead focuses on **event time** - the time when events actually occurred in the real world. This distinction is crucial for:
+
+
+
+## What Problem Does Azof Solve?
+
+Traditional data lakehouse formats allow time travel based on when data was written (processing time). Azof instead focuses on **event time** - the time when events actually occurred in the real world. This distinction is crucial for:
 
 - **Late-arriving data**: Process data that arrives out of order without rewriting history
 - **Consistent historical views**: Get consistent snapshots of data as it existed at specific points in time
@@ -30,11 +34,11 @@ Traditional data lakehouse formats allow time travel based on when data was writ
 
 ## Project Structure
 
-The Bazof project is organized as a Rust workspace with multiple crates:
+The Azof project is organized as a Rust workspace with multiple crates:
 
-- **bazof**: The core library providing the lakehouse format functionality
-- **bazof-cli**: A CLI utility demonstrating how to use the library
-- **bazof-datafusion**: DataFusion integration for SQL queries
+- **azof**: The core library providing the lakehouse format functionality
+- **azof-cli**: A CLI utility demonstrating how to use the library
+- **azof-datafusion**: DataFusion integration for SQL queries
 
 ## Getting Started
 
@@ -46,34 +50,34 @@ cargo build --workspace
 
 ## Using the CLI
 
-The bazof-cli provides a command-line interface for interacting with bazof:
+The azof-cli provides a command-line interface for interacting with azof:
 
 ```bash
 # Scan a table (current version)
-cargo run -p bazof-cli -- scan --path ./test-data --table table0
+cargo run -p azof-cli -- scan --path ./test-data --table table0
 
 # Scan a table as of a specific event time
-cargo run -p bazof-cli -- scan --path ./test-data --table table0 --as-of "2024-03-15T14:30:00"
+cargo run -p azof-cli -- scan --path ./test-data --table table0 --as-of "2024-03-15T14:30:00"
 
 # Generate test parquet file from CSV
-cargo run -p bazof-cli -- gen --path ./test-data --table table2 --file base
+cargo run -p azof-cli -- gen --path ./test-data --table table2 --file base
 ```
 
 ## DataFusion Integration
 
-The bazof-datafusion crate provides integration with Apache DataFusion, allowing you to:
+The azof-datafusion crate provides integration with Apache DataFusion, allowing you to:
 
-1. Register Bazof tables in a DataFusion context
-2. Run SQL queries against Bazof tables
+1. Register Azof tables in a DataFusion context
+2. Run SQL queries against Azof tables
 3. Perform time-travel queries using the AsOf functionality
 
 ### Example
 
 ```rust
-use bazof_datafusion::context::ExecutionContext;
+use azof_datafusion::context::ExecutionContext;
 
-async fn query_bazof() -> Result<(), Box<dyn std::error::Error>> {
-    let ctx = ExecutionContext::new("/path/to/bazof");
+async fn query_azof() -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = ExecutionContext::new("/path/to/azof");
 
     let df = ctx
         .sql(
@@ -97,18 +101,18 @@ async fn query_bazof() -> Result<(), Box<dyn std::error::Error>> {
 Run the example:
 
 ```bash
-cargo run --example query_example -p bazof-datafusion
+cargo run --example query_example -p azof-datafusion
 ```
 
-If you install the CLI with `cargo install --path crates/bazof-cli`, you can run it directly with:
+If you install the CLI with `cargo install --path crates/azof-cli`, you can run it directly with:
 
 ```bash
-bazof-cli scan --path ./test-data --table table0
+azof-cli scan --path ./test-data --table table0
 ```
 
 ## Project Roadmap
 
-Bazof is under development. The goal is to implement a data lakehouse with the following capabilities:
+Azof is under development. The goal is to implement a data lakehouse with the following capabilities:
 
 * Atomic, non-concurrent writes (single writer)
 * Consistent reads

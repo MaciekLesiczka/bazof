@@ -1,5 +1,5 @@
-use bazof::AsOf;
-use bazof::AsOf::{Current, EventTime};
+use azof::AsOf;
+use azof::AsOf::{Current, EventTime};
 use chrono::{DateTime, Utc};
 use datafusion::logical_expr::sqlparser::ast::{
     Expr, Function, FunctionArg, FunctionArgExpr, FunctionArguments, Ident, ObjectName,

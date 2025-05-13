@@ -7,9 +7,9 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bazof::Lakehouse;
-use bazof::Projection::{All, Columns};
-use bazof::{AsOf, BazofError};
+use azof::Lakehouse;
+use azof::Projection::{All, Columns};
+use azof::{AsOf, AzofError};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::catalog::Session;
@@ -29,14 +29,14 @@ use datafusion::physical_plan::{
 use object_store::path::Path;
 use object_store::ObjectStore;
 
-pub struct BazofTableProvider {
+pub struct AzofTableProvider {
     lakehouse: Arc<Lakehouse>,
     table_name: String,
     as_of: AsOf,
     schema: SchemaRef,
 }
 
-impl Clone for BazofTableProvider {
+impl Clone for AzofTableProvider {
     fn clone(&self) -> Self {
         Self {
             lakehouse: self.lakehouse.clone(),
@@ -47,23 +47,23 @@ impl Clone for BazofTableProvider {
     }
 }
 
-impl Debug for BazofTableProvider {
+impl Debug for AzofTableProvider {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "BazofTableProvider(table={}, as_of={:?})",
+            "AzofTableProvider(table={}, as_of={:?})",
             self.table_name, self.as_of
         )
     }
 }
 
-impl BazofTableProvider {
+impl AzofTableProvider {
     pub async fn new(
         store_path: Path,
         store: Arc<dyn ObjectStore>,
         table_name: String,
         as_of: AsOf,
-    ) -> std::result::Result<Self, BazofError> {
+    ) -> std::result::Result<Self, AzofError> {
         let lakehouse = Arc::new(Lakehouse::new(store_path, store));
 
         let schema = Arc::new(
@@ -85,7 +85,7 @@ impl BazofTableProvider {
         store_path: Path,
         store: Arc<dyn ObjectStore>,
         table_name: String,
-    ) -> std::result::Result<Self, BazofError> {
+    ) -> std::result::Result<Self, AzofError> {
         Self::new(store_path, store, table_name, AsOf::Current).await
     }
 
@@ -94,13 +94,13 @@ impl BazofTableProvider {
         store: Arc<dyn ObjectStore>,
         table_name: String,
         event_time: chrono::DateTime<chrono::Utc>,
-    ) -> std::result::Result<Self, BazofError> {
+    ) -> std::result::Result<Self, AzofError> {
         Self::new(store_path, store, table_name, AsOf::EventTime(event_time)).await
     }
 }
 
 #[async_trait]
-impl TableProvider for BazofTableProvider {
+impl TableProvider for AzofTableProvider {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -120,7 +120,7 @@ impl TableProvider for BazofTableProvider {
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
-        let exec = BazofExec::new(
+        let exec = AzofExec::new(
             self.lakehouse.clone(),
             self.table_name.clone(),
             self.as_of,
@@ -132,7 +132,7 @@ impl TableProvider for BazofTableProvider {
     }
 }
 
-pub struct BazofExec {
+pub struct AzofExec {
     lakehouse: Arc<Lakehouse>,
     table_name: String,
     as_of: AsOf,
@@ -140,9 +140,9 @@ pub struct BazofExec {
     cache: PlanProperties,
 }
 
-impl Debug for BazofExec {
+impl Debug for AzofExec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BazofExec")
+        f.debug_struct("AzofExec")
             .field("table_name", &self.table_name)
             .field("as_of", &self.as_of)
             .field("projected_schema", &self.projected_schema)
@@ -150,7 +150,7 @@ impl Debug for BazofExec {
     }
 }
 
-impl Clone for BazofExec {
+impl Clone for AzofExec {
     fn clone(&self) -> Self {
         Self {
             lakehouse: self.lakehouse.clone(),
@@ -162,7 +162,7 @@ impl Clone for BazofExec {
     }
 }
 
-impl BazofExec {
+impl AzofExec {
     pub fn new(
         lakehouse: Arc<Lakehouse>,
         table_name: String,
@@ -204,17 +204,17 @@ impl BazofExec {
     }
 }
 
-impl DisplayAs for BazofExec {
+impl DisplayAs for AzofExec {
     fn fmt_as(&self, _t: DisplayFormatType, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
-            "BazofExec: table={}, as_of={:?}",
+            "AzofExec: table={}, as_of={:?}",
             self.table_name, self.as_of
         )
     }
 }
 
-impl ExecutionPlan for BazofExec {
+impl ExecutionPlan for AzofExec {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -235,7 +235,7 @@ impl ExecutionPlan for BazofExec {
     }
 
     fn name(&self) -> &str {
-        "BazofExec"
+        "AzofExec"
     }
 
     fn metrics(&self) -> Option<MetricsSet> {
@@ -267,7 +267,7 @@ impl ExecutionPlan for BazofExec {
                 .scan(&table_name, as_of, Columns(names))
                 .await
                 .map_err(|e| {
-                    DataFusionError::Execution(format!("Error scanning Bazof table: {}", e))
+                    DataFusionError::Execution(format!("Error scanning Azof table: {}", e))
                 })?;
             Ok::<Vec<RecordBatch>, DataFusionError>(vec![batch])
         };

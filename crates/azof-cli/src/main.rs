@@ -3,10 +3,10 @@ extern crate core;
 mod test_bench;
 
 use arrow_array::RecordBatch;
-use bazof::AsOf::{Current, EventTime};
-use bazof::BazofError;
-use bazof::Lakehouse;
-use bazof::Projection::All;
+use azof::AsOf::{Current, EventTime};
+use azof::AzofError;
+use azof::Lakehouse;
+use azof::Projection::All;
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use object_store::local::LocalFileSystem;
@@ -58,7 +58,7 @@ enum Commands {
     },
 }
 
-fn arrow_to_parquet(batch: RecordBatch) -> Result<Vec<u8>, BazofError> {
+fn arrow_to_parquet(batch: RecordBatch) -> Result<Vec<u8>, AzofError> {
     let mut buffer = Vec::new();
     let props = WriterProperties::builder().build();
     let mut writer = ArrowWriter::try_new(&mut buffer, batch.schema(), Some(props))?;

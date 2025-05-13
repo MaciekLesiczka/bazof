@@ -3,9 +3,9 @@ use arrow_array::builder::ArrayBuilder;
 use arrow_array::cast::AsArray;
 use arrow_array::types::TimestampMillisecondType;
 use arrow_array::RecordBatch;
-use bazof::BazofError;
-use bazof::Projection::All;
-use bazof::{ColumnDef, ColumnType, TableSchema};
+use azof::AzofError;
+use azof::Projection::All;
+use azof::{ColumnDef, ColumnType, TableSchema};
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashSet;
@@ -54,7 +54,7 @@ fn _generate_random_batch(
     num_rows: usize,
     ts_range: (i64, i64),
     num_keys: usize,
-) -> Result<RecordBatch, BazofError> {
+) -> Result<RecordBatch, AzofError> {
     let mut rng = rand::rng();
     let mut used_pairs = HashSet::new();
 
@@ -100,7 +100,7 @@ pub fn print_batch(batch: &RecordBatch) {
     }
 }
 
-fn _sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, BazofError> {
+fn _sort_batch_by_ts_desc(batch: &RecordBatch) -> Result<RecordBatch, AzofError> {
     let ts_column = batch.column(1);
 
     let sort_indices = sort_to_indices(

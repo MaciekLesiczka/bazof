@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bazof_datafusion::context::ExecutionContext;
+use azof_datafusion::context::ExecutionContext;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
