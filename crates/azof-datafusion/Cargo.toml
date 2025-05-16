@@ -9,7 +9,7 @@ license.workspace = true
 readme = "../../README.md"
 
 [dependencies]
-azof = { path = "../azof" }
+azof = { path = "../azof", version = "0.2.1" }
 datafusion = "46.0.0"
 arrow-array = "54.2.0"
 arrow = "54.2.0"

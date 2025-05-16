@@ -13,7 +13,7 @@ name = "azof-cli"
 path = "src/main.rs"
 
 [dependencies]
-azof = { path = "../azof" }
+azof = { path = "../azof", version = "0.2.1" }
 tokio = { version = "1", features = ["full"] }
 arrow-array = "54.2.0"
 arrow = "54.2.0"
