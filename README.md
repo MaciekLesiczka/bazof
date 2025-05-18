@@ -10,7 +10,22 @@ Query tables in object storage as of event time.
 Azof is a lakehouse format with time-travel capabilities that allows you to query data as it existed at any point in time, based on when events actually occurred rather than when they were recorded.
 
 
+# Practical Example
 
+The `test-data/financials` table contains historical financial information about US public companies, including revenue, income, and share counts. The data is organized by fiscal quarter end dates - when financial results became official - rather than when the data was recorded in the system.
+
+With Azof, you can query this data as it existed at any specific point in time:
+
+```sql
+SELECT key as symbol, revenue, net_income
+  FROM financials
+    AT ('2019-01-17T00:00:00.000Z') -- point-in-time snapshot of available financial data
+ WHERE industry IN ('Software')
+ ORDER BY revenue DESC
+ LIMIT 5
+```
+
+This query returns the top 5 software companies by revenue, using only financial data that was officially reported as of January 17, 2019.
 
 
 ## What Problem Does Azof Solve?
