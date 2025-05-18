@@ -30,7 +30,7 @@ This query returns the top 5 software companies by revenue, using only financial
 
 ## What Problem Does Azof Solve?
 
-Traditional data lakehouse formats allow time travel based on when data was written (processing time). Azof instead focuses on **event time** - the time when events actually occurred in the real world. This distinction is crucial for:
+Lakehouse formats typicaly allow time travel based on when data was written (processing time). Azof instead focuses on **event time** - the time when events actually occurred in the real world. This distinction is crucial for:
 
 - **Late-arriving data**: Process data that arrives out of order without rewriting history
 - **Consistent historical views**: Get consistent snapshots of data as it existed at specific points in time
