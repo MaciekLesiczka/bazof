@@ -122,8 +122,10 @@ mod tests {
     use super::*;
     use crate::as_of::AsOf::{Current, EventTime};
     use crate::projection::Projection::All;
-    use arrow_array::types::Int64Type;
-    use arrow_array::Array;
+    use arrow::compute::cast;
+    use arrow::compute::{sort_to_indices, take};
+    use arrow_array::record_batch;
+    use arrow_schema::{ArrowError, DataType, Field, Schema};
     use chrono::{TimeZone, Utc};
     use object_store::local::LocalFileSystem;
     use object_store::path::Path;
@@ -135,27 +137,23 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table0", Current, All).await?;
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc2".to_string()),
-            (2.to_string(), "xyz2".to_string()),
-            (3.to_string(), "www2".to_string()),
-        ]);
+        let expected = record_batch!(
+            ("key", Utf8, ["1", "2", "3"]),
+            ("value", Utf8, ["abc2", "xyz2", "www2"])
+        )?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table0", EventTime(past), All).await?;
 
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc2".to_string()),
-            (2.to_string(), "xyz".to_string()),
-        ]);
+        let expected = record_batch!(("key", Utf8, ["1", "2"]), ("value", Utf8, ["abc2", "xyz"]))?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -165,34 +163,27 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table1", Current, All).await?;
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc4".to_string()),
-            (2.to_string(), "xyz3".to_string()),
-        ]);
+        let expected = record_batch!(("key", Utf8, ["1", "2"]), ("value", Utf8, ["abc4", "xyz3"]))?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         let past = Utc.with_ymd_and_hms(2024, 6, 1, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table1", EventTime(past), All).await?;
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc3".to_string()),
-            (2.to_string(), "xyz2".to_string()),
-        ]);
+        let expected = record_batch!(("key", Utf8, ["1", "2"]), ("value", Utf8, ["abc3", "xyz2"]))?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         let past = Utc.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table1", EventTime(past), All).await?;
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> =
-            HashMap::from([(1.to_string(), "abc2".to_string())]);
+        let expected = record_batch!(("key", Utf8, ["1"]), ("value", Utf8, ["abc2"]))?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -203,42 +194,38 @@ mod tests {
         let lakehouse = create_target();
 
         let result = lakehouse.scan("table2", Current, All).await?;
-        let result = azof_batch_to_hash_map_4columns(&result);
+        let result = convert_timestamp_to_i64(&result, 5)?;
+        let result = sort_by_key(&result.project(&[0, 2, 3, 4, 5])?)?;
 
-        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
+        let expected = record_batch!(
+            ("key", Utf8, ["1", "2", "3"]),
+            ("value1", Utf8, ["abc2", "xyz2", "www2"]),
+            ("value2", Int64, [100, 222, 300]),
+            ("is_active", Boolean, [true, false, false]),
             (
-                1.to_string(),
-                ("abc2".to_string(), 100, true, 1704067200000),
-            ),
-            (
-                2.to_string(),
-                ("xyz2".to_string(), 222, false, 1704067200000),
-            ),
-            (
-                3.to_string(),
-                ("www2".to_string(), 300, false, 1709251200000),
-            ),
-        ]);
+                "created",
+                Int64,
+                [1704067200000, 1704067200000, 1709251200000]
+            )
+        )?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         let past = Utc.with_ymd_and_hms(2024, 2, 17, 0, 0, 0).unwrap();
         let result = lakehouse.scan("table2", EventTime(past), All).await?;
 
-        let result = azof_batch_to_hash_map_4columns(&result);
+        let result = convert_timestamp_to_i64(&result, 5)?;
+        let result = sort_by_key(&result.project(&[0, 2, 3, 4, 5])?)?;
 
-        let expected: HashMap<String, (String, i64, bool, i64)> = HashMap::from([
-            (
-                1.to_string(),
-                ("abc2".to_string(), 100, true, 1704067200000),
-            ),
-            (
-                2.to_string(),
-                ("xyz".to_string(), 200, false, 1704067200000),
-            ),
-        ]);
+        let expected = record_batch!(
+            ("key", Utf8, ["1", "2"]),
+            ("value1", Utf8, ["abc2", "xyz"]),
+            ("value2", Int64, [100, 200]),
+            ("is_active", Boolean, [true, false]),
+            ("created", Int64, [1704067200000, 1704067200000])
+        )?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -262,15 +249,14 @@ mod tests {
 
         assert_eq!(result.columns().len(), 3);
 
-        let result = azof_batch_to_hash_map(&result);
+        let result = sort_by_key(&result.project(&[0, 2])?)?;
 
-        let expected: HashMap<String, String> = HashMap::from([
-            (1.to_string(), "abc2".to_string()),
-            (2.to_string(), "xyz2".to_string()),
-            (3.to_string(), "www2".to_string()),
-        ]);
+        let expected = record_batch!(
+            ("key", Utf8, ["1", "2", "3"]),
+            ("value", Utf8, ["abc2", "xyz2", "www2"])
+        )?;
 
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -289,11 +275,11 @@ mod tests {
 
         assert_eq!(result.columns().len(), 1);
 
-        let result = azof_batch_to_hash_set_string(&result);
+        let result = sort_by_key(&result)?;
 
-        let expected: HashSet<String> =
-            HashSet::from([1.to_string(), 2.to_string(), 3.to_string()]);
-        assert_eq!(result, expected);
+        let expected = record_batch!(("key", Utf8, ["1", "2", "3"]))?;
+
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -310,12 +296,19 @@ mod tests {
             )
             .await?;
 
+        let result = sort_by_column(&result, "event_time")?;
+
+        let result = convert_timestamp_to_i64(&result, 0)?;
+
         assert_eq!(result.columns().len(), 1);
 
-        let result = azof_batch_to_hash_set_timestamp(&result);
+        let expected = record_batch!((
+            "event_time",
+            Int64,
+            [1706745600000, 1708387200000, 1710028800000]
+        ))?;
 
-        let expected: HashSet<i64> = HashSet::from([1706745600000, 1710028800000, 1708387200000]);
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -342,8 +335,8 @@ mod tests {
         let result = azof_batch_to_hash_set_ts_bool_ts(&result);
 
         let expected: HashSet<(i64, bool, i64)> = HashSet::from([
-            (1708387200000, false, 1704067200000),
             (1706745600000, true, 1704067200000),
+            (1708387200000, false, 1704067200000),
             (1710028800000, false, 1709251200000),
         ]);
         assert_eq!(result, expected);
@@ -364,13 +357,13 @@ mod tests {
             )
             .await?;
 
+        let result = sort_by_column(&result, "value1")?;
+
         assert_eq!(result.columns().len(), 1);
 
-        let result = azof_batch_to_hash_set_string(&result);
+        let expected = record_batch!(("value1", Utf8, ["abc2", "www2", "xyz2"]))?;
 
-        let expected: HashSet<String> =
-            HashSet::from(["abc2".to_string(), "xyz2".to_string(), "www2".to_string()]);
-        assert_eq!(result, expected);
+        assert_eq!(result.columns(), expected.columns());
 
         Ok(())
     }
@@ -385,39 +378,6 @@ mod tests {
 
         let local_store = Arc::new(LocalFileSystem::new());
         Lakehouse::new(curr_dir, local_store)
-    }
-
-    fn azof_batch_to_hash_map(batch: &RecordBatch) -> HashMap<String, String> {
-        let key_array = batch.column(0).as_string::<i32>();
-        let value_array = batch.column(2).as_string::<i32>();
-        let mut result_map: HashMap<String, String> = HashMap::new();
-        for i in 0..key_array.len() {
-            result_map.insert(
-                key_array.value(i).to_owned(),
-                value_array.value(i).to_owned(),
-            );
-        }
-        result_map
-    }
-
-    fn azof_batch_to_hash_set_string(batch: &RecordBatch) -> HashSet<String> {
-        let column_values = batch.column(0).as_string::<i32>();
-
-        let mut result: HashSet<String> = HashSet::new();
-        for i in 0..column_values.len() {
-            result.insert(column_values.value(i).to_owned());
-        }
-        result
-    }
-
-    fn azof_batch_to_hash_set_timestamp(batch: &RecordBatch) -> HashSet<i64> {
-        let column_values = batch.column(0).as_primitive::<TimestampMillisecondType>();
-
-        let mut result: HashSet<i64> = HashSet::new();
-        for i in 0..column_values.len() {
-            result.insert(column_values.value(i).to_owned());
-        }
-        result
     }
 
     fn azof_batch_to_hash_set_ts_bool_ts(batch: &RecordBatch) -> HashSet<(i64, bool, i64)> {
@@ -435,27 +395,39 @@ mod tests {
         result
     }
 
-    fn azof_batch_to_hash_map_4columns(
-        batch: &RecordBatch,
-    ) -> HashMap<String, (String, i64, bool, i64)> {
-        let key_array = batch.column(0).as_string::<i32>();
-        let value_array = batch.column(2).as_string::<i32>();
-        let value2_array = batch.column(3).as_primitive::<Int64Type>();
-        let value3_array = batch.column(4).as_boolean();
+    fn sort_by_key(batch: &RecordBatch) -> Result<RecordBatch, ArrowError> {
+        sort_by_column(batch, "key")
+    }
 
-        let value4_array = batch.column(5).as_primitive::<TimestampMillisecondType>();
-        let mut result_map: HashMap<String, (String, i64, bool, i64)> = HashMap::new();
-        for i in 0..key_array.len() {
-            result_map.insert(
-                key_array.value(i).to_owned(),
-                (
-                    value_array.value(i).to_owned(),
-                    value2_array.value(i).to_owned(),
-                    value3_array.value(i).to_owned(),
-                    value4_array.value(i).to_owned(),
-                ),
-            );
-        }
-        result_map
+    fn sort_by_column(batch: &RecordBatch, column: &str) -> Result<RecordBatch, ArrowError> {
+        let key_column = batch.column_by_name(column).unwrap();
+        let sort_indices = sort_to_indices(key_column, None, None)?;
+
+        let sorted_columns: Result<Vec<_>, _> = batch
+            .columns()
+            .iter()
+            .map(|col| take(col, &sort_indices, None))
+            .collect();
+
+        let sorted_batch = RecordBatch::try_new(batch.schema(), sorted_columns?)?;
+        Ok(sorted_batch)
+    }
+
+    fn convert_timestamp_to_i64(
+        batch: &RecordBatch,
+        col_index: usize,
+    ) -> Result<RecordBatch, ArrowError> {
+        let i64_col = cast(batch.column(col_index), &DataType::Int64)?;
+        let mut fields: Vec<Arc<Field>> = batch.schema().fields().iter().cloned().collect();
+        fields[col_index] = Arc::new(Field::new(
+            fields[col_index].name(),
+            DataType::Int64,
+            fields[col_index].is_nullable(),
+        ));
+        let schema = Arc::new(Schema::new(fields));
+
+        let mut columns = batch.columns().to_vec();
+        columns[col_index] = i64_col;
+        RecordBatch::try_new(schema, columns)
     }
 }
